@@ -1,0 +1,56 @@
+.toolbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #13131a;
+  border-bottom: 1px solid #2a2a35;
+}
+
+.left {
+  display: flex;
+  gap: 8px;
+}
+
+.button {
+  padding: 6px 12px;
+  background: #2d2d4a;
+  border: 1px solid #3a3a50;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.button:hover {
+  background: #3a3a55;
+}
+
+.runButton {
+  padding: 6px 16px;
+  background: #43b581;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.runButton:hover {
+  background: #3ca374;
+}
+
+.runButton:disabled {
+  background: #2d5a44;
+  cursor: not-allowed;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+}
