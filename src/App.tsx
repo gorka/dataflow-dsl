@@ -8,8 +8,9 @@ import { RightPanel } from './panel/RightPanel';
 import { Toolbar } from './toolbar/Toolbar';
 import { useGraphFromDsl, registryToFlow } from './graph/useGraphFromDsl';
 import { useDslFromGraph } from './graph/useDslFromGraph';
+import { useKeyboardHandler } from './graph/useKeyboardHandler';
 import { evaluateDsl } from './dsl/runtime';
-import { addNodeToCode as addNodeToDsl, removeNodeFromCode } from './dsl/codegen';
+import { addNodeToCode as addNodeToDsl } from './dsl/codegen';
 import { executePipeline } from './dsl/execute';
 import { AppProvider } from './state/AppProvider';
 import { useAppState, useAppDispatch } from './state/useAppState';
@@ -50,65 +51,10 @@ function AppInner() {
     dispatch({ type: 'UPDATE_NODE_RESULTS', results: state.results });
   }, [state.results, dispatch]);
 
+  useKeyboardHandler(state, { dispatch, setCodeWithHistory, updateConfig });
+
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; });
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const active = document.activeElement;
-      if (active?.closest('.cm-editor') || active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT') return;
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        dispatch({ type: 'UNDO' });
-        return;
-      }
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const s = stateRef.current;
-        const selectedEdge = s.edges.find(edge => {
-          const el = document.querySelector(`[aria-label="Edge from ${edge.source} to ${edge.target}"]`);
-          return el?.closest('.selected') != null;
-        });
-
-        if (selectedEdge) {
-          e.preventDefault();
-          const edgeType = (selectedEdge.data as { edgeType: string } | undefined)?.edgeType;
-          if (edgeType === 'chain') {
-            const registry = evaluateDsl(s.code);
-            const targetNode = registry.nodes.find(n => n.id === selectedEdge.target);
-            if (!targetNode) return;
-            setCodeWithHistory(prev => removeNodeFromCode(prev, selectedEdge.target));
-            const currentNode = s.nodes.find(n => n.id === selectedEdge.target);
-            const position = currentNode?.position ?? { x: 100, y: 100 };
-            dispatch({
-              type: 'ADD_FLOATING_NODE',
-              node: { id: targetNode.id, type: targetNode.type, position, data: { label: targetNode.id, nodeType: targetNode.type, config: targetNode.config, unlinked: true } },
-            });
-          } else if (edgeType === 'join') {
-            updateConfig(selectedEdge.target, 'nodeId', '""');
-          }
-          return;
-        }
-
-        const selectedNode = s.nodes.find(n => n.selected);
-        if (selectedNode) {
-          e.preventDefault();
-          const isFloating = s.floatingNodes.some(n => n.id === selectedNode.id);
-          if (isFloating) {
-            dispatch({ type: 'REMOVE_FLOATING_NODE', id: selectedNode.id });
-          } else {
-            setCodeWithHistory(prev => removeNodeFromCode(prev, selectedNode.id));
-          }
-          if (s.selectedNodeId === selectedNode.id) {
-            dispatch({ type: 'SELECT_NODE', id: null });
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [dispatch, setCodeWithHistory, updateConfig]);
 
   const selectNode = useCallback(
     (id: string | null) => dispatch({ type: 'SELECT_NODE', id }),
