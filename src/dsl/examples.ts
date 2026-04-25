@@ -33,22 +33,6 @@ select("stats", "dragon", ["name", "size", "hit_points", "challenge_rating", "st
 
 map("result", "stats", { monster: "name", size: "size", hp: "hit_points", cr: "challenge_rating", str: "strength", dex: "dexterity", con: "constitution" });`;
 
-const RICK_AND_MORTY_PIPELINE = `source("character", {
-  endpoint: "https://rickandmortyapi.com/api/character/1",
-  method: "GET"
-});
-
-source("location", {
-  endpoint: "{url}",
-  params: { url: ref("character", "location.url") }
-});
-
-select("charInfo", "character", ["name", "status", "species", "gender"]);
-
-select("locationInfo", "location", ["name", "type", "dimension"]);
-
-join("result", "charInfo", "locationInfo", { as: "location" });`;
-
 const POKEAPI_PIPELINE = `source("pokemon", {
   endpoint: "https://pokeapi.co/api/v2/pokemon/25",
   method: "GET"
@@ -193,8 +177,7 @@ export const EXAMPLES: Example[] = [
   { name: 'REST Countries — European Countries', tier: 'Simple', code: REST_COUNTRIES_PIPELINE },
   { name: 'Open-Meteo — Paris Weather', tier: 'Simple', code: OPEN_METEO_PIPELINE },
   { name: 'D&D 5e — Dragon Stats', tier: 'Simple', code: DND_PIPELINE },
-  { name: 'Rick & Morty — Character & Location', tier: 'Moderate', code: RICK_AND_MORTY_PIPELINE },
-  { name: 'PokeAPI — Pokemon Profile', tier: 'Moderate', code: POKEAPI_PIPELINE },
+{ name: 'PokeAPI — Pokemon Profile', tier: 'Moderate', code: POKEAPI_PIPELINE },
   { name: 'Open Library — Book & Author', tier: 'Moderate', code: OPEN_LIBRARY_PIPELINE },
   { name: 'Art Institute — Artwork Deep Dive', tier: 'Moderate', code: ART_INSTITUTE_PIPELINE },
   { name: 'SpaceX — Launch Details', tier: 'Advanced', code: SPACEX_PIPELINE },
