@@ -5,6 +5,8 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { Decoration, ViewPlugin, EditorView, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { RangeSetBuilder, type Extension } from '@codemirror/state';
 import type { Text } from '@codemirror/state';
+import { createDslCompletion } from './dslCompletions';
+import type { ExecutionResult } from '../types';
 import styles from './DslEditor.module.css';
 
 interface DslEditorProps {
@@ -13,6 +15,8 @@ interface DslEditorProps {
   selectedNodeId: string | null;
   onNodeSelect?: (nodeId: string | null) => void;
   snippetNodeId?: string;
+  nodeIds?: string[];
+  results?: Map<string, ExecutionResult>;
 }
 
 const NODE_CALL_RE = /^(source|filter|map|select|join)\s*\(/;
@@ -192,7 +196,7 @@ function validateSnippet(text: string): string | null {
   return null;
 }
 
-export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId }: DslEditorProps) {
+export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId, nodeIds = [], results = new Map() }: DslEditorProps) {
   const lastCursorNodeRef = useRef<string | null>(null);
   const [snippetOverride, setSnippetOverride] = useState<string | null>(null);
   const [snippetError, setSnippetError] = useState<string | null>(null);
@@ -204,13 +208,17 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippe
 
   const extensions = useMemo(
     () => {
-      const exts: Extension[] = [javascript(), createDimExtension(selectedNodeId)];
+      const exts: Extension[] = [
+        javascript(),
+        createDimExtension(selectedNodeId),
+        createDslCompletion(nodeIds, results),
+      ];
       if (onNodeSelect) {
         exts.push(createCursorTrackExtension(onNodeSelect, lastCursorNodeRef));
       }
       return exts;
     },
-    [selectedNodeId, onNodeSelect],
+    [selectedNodeId, onNodeSelect, nodeIds, results],
   );
 
   const snippetExtensions = useMemo(() => [javascript()], []);

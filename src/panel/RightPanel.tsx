@@ -91,6 +91,8 @@ export function RightPanel({
               onChange={onCodeChange}
               selectedNodeId={null}
               onNodeSelect={onNodeHighlight}
+              nodeIds={nodeIds}
+              results={results}
             />
           )}
           {globalTab === 'docs' && <DocsPanel />}
