@@ -1,4 +1,4 @@
-import { EXAMPLES } from '../dsl/examples';
+import { EXAMPLES, type Tier } from '../dsl/examples';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
@@ -27,8 +27,12 @@ export function Toolbar({ onRun, onAutoLayout, onClear, onExampleSelect, isRunni
           }}
         >
           <option value="" disabled>Load example...</option>
-          {EXAMPLES.map((ex, i) => (
-            <option key={i} value={i}>{ex.name}</option>
+          {(['Simple', 'Moderate', 'Advanced'] as Tier[]).map(tier => (
+            <optgroup key={tier} label={tier}>
+              {EXAMPLES.map((ex, i) => ex.tier === tier && (
+                <option key={i} value={i}>{ex.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
