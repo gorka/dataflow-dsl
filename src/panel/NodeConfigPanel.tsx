@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
 import type { NodeType, GraphNode, SourceConfig, FilterConfig, MapConfig, SelectConfig, JoinConfig } from '../types';
 import { BlurInput } from '../shared/BlurInput';
-import { ParamRows } from '../shared/ParamRows';
+import { SourceConfigPanel } from './SourceConfigPanel';
 import styles from './NodeConfigPanel.module.css';
 
 interface NodeConfigPanelProps {
@@ -12,41 +11,53 @@ interface NodeConfigPanelProps {
   nodeIds: string[];
 }
 
-function SourceConfigPanel({ config, onConfigChange, nodeIds }: {
-  config: SourceConfig;
-  onConfigChange: (key: string, value: string) => void;
-  nodeIds: string[];
-}) {
-  const [localEndpoint, setLocalEndpoint] = useState(config.endpoint ?? '');
-  useEffect(() => { setLocalEndpoint(config.endpoint ?? ''); }, [config.endpoint]);
+function MapConfigFields({ config, onConfigChange }: { config: MapConfig; onConfigChange: (key: string, value: string) => void }) {
+  const mapStr = Object.entries(config.mapping).map(([k, v]) => `${k}:${v}`).join(', ');
+  return (
+    <div className={styles.field}>
+      <span className={styles.fieldLabel}>mapping (newKey:oldKey, ...)</span>
+      <BlurInput
+        className={styles.fieldInput}
+        value={mapStr}
+        placeholder="newKey:oldKey, ..."
+        onCommit={v => {
+          const obj: Record<string, string> = {};
+          v.split(',').forEach(pair => {
+            const [k, val] = pair.split(':').map(s => s.trim());
+            if (k && val) obj[k] = val;
+          });
+          onConfigChange('mapping', JSON.stringify(obj));
+        }}
+      />
+    </div>
+  );
+}
 
-  const commitEndpoint = () => {
-    if (localEndpoint !== config.endpoint) {
-      onConfigChange('endpoint', JSON.stringify(localEndpoint));
-    }
-  };
-
+function JoinConfigFields({ config, onConfigChange, nodeIds }: { config: JoinConfig; onConfigChange: (key: string, value: string) => void; nodeIds: string[] }) {
   return (
     <>
       <div className={styles.field}>
-        <span className={styles.fieldLabel}>endpoint</span>
-        <input
-          className={styles.fieldInput}
-          value={localEndpoint}
-          onChange={e => setLocalEndpoint(e.target.value)}
-          onBlur={commitEndpoint}
-          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-        />
+        <span className={styles.fieldLabel}>source node</span>
+        <select
+          className={styles.fieldSelect}
+          value={config.nodeId}
+          onChange={e => onConfigChange('nodeId', JSON.stringify(e.target.value))}
+        >
+          <option value="">select node...</option>
+          {nodeIds.map(id => (
+            <option key={id} value={id}>{id}</option>
+          ))}
+        </select>
       </div>
       <div className={styles.field}>
-        <span className={styles.fieldLabel}>method</span>
+        <span className={styles.fieldLabel}>embed as</span>
         <BlurInput
           className={styles.fieldInput}
-          value={config.method ?? 'GET'}
-          onCommit={v => onConfigChange('method', JSON.stringify(v))}
+          value={config.as ?? ''}
+          placeholder="field name"
+          onCommit={v => onConfigChange('as', JSON.stringify(v))}
         />
       </div>
-      <ParamRows endpoint={localEndpoint} config={config} nodeIds={nodeIds} onConfigChange={onConfigChange} styles={styles} />
     </>
   );
 }
@@ -69,28 +80,9 @@ export function NodeConfigPanel({ nodeType, config, onConfigChange, nodeIds }: N
           />
         </div>
       )}
-      {nodeType === 'map' && (() => {
-        const mc = config as MapConfig;
-        const mapStr = Object.entries(mc.mapping).map(([k, v]) => `${k}:${v}`).join(', ');
-        return (
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>mapping (newKey:oldKey, ...)</span>
-            <BlurInput
-              className={styles.fieldInput}
-              value={mapStr}
-              placeholder="newKey:oldKey, ..."
-              onCommit={v => {
-                const obj: Record<string, string> = {};
-                v.split(',').forEach(pair => {
-                  const [k, val] = pair.split(':').map(s => s.trim());
-                  if (k && val) obj[k] = val;
-                });
-                onConfigChange('mapping', JSON.stringify(obj));
-              }}
-            />
-          </div>
-        );
-      })()}
+      {nodeType === 'map' && (
+        <MapConfigFields config={config as MapConfig} onConfigChange={onConfigChange} />
+      )}
       {nodeType === 'select' && (
         <div className={styles.field}>
           <span className={styles.fieldLabel}>fields (comma-separated)</span>
@@ -105,35 +97,9 @@ export function NodeConfigPanel({ nodeType, config, onConfigChange, nodeIds }: N
           />
         </div>
       )}
-      {nodeType === 'join' && (() => {
-        const jc = config as JoinConfig;
-        return (
-          <>
-            <div className={styles.field}>
-              <span className={styles.fieldLabel}>source node</span>
-              <select
-                className={styles.fieldSelect}
-                value={jc.nodeId}
-                onChange={e => onConfigChange('nodeId', JSON.stringify(e.target.value))}
-              >
-                <option value="">select node...</option>
-                {nodeIds.map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.field}>
-              <span className={styles.fieldLabel}>embed as</span>
-              <BlurInput
-                className={styles.fieldInput}
-                value={jc.as ?? ''}
-                placeholder="field name"
-                onCommit={v => onConfigChange('as', JSON.stringify(v))}
-              />
-            </div>
-          </>
-        );
-      })()}
+      {nodeType === 'join' && (
+        <JoinConfigFields config={config as JoinConfig} onConfigChange={onConfigChange} nodeIds={nodeIds} />
+      )}
     </div>
   );
 }
