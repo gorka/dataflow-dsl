@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import Dagre from '@dagrejs/dagre';
 import { evaluateDsl } from '../dsl/runtime';
@@ -9,17 +9,16 @@ export function useGraphFromDsl(
   code: string,
   onConfigChange?: (nodeId: string, key: string, value: string) => void,
 ) {
+  const lastValid = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
+
   return useMemo(() => {
-    try {
-      const registry = evaluateDsl(code);
-      if (registry.error) {
-        return { nodes: [] as Node[], edges: [] as Edge[], error: registry.error };
-      }
-      const result = registryToFlow(registry, onConfigChange);
-      return { ...result, error: undefined };
-    } catch (e) {
-      return { nodes: [] as Node[], edges: [] as Edge[], error: e instanceof Error ? e.message : 'DSL parse error' };
+    const registry = evaluateDsl(code);
+    if (registry.error) {
+      return { nodes: lastValid.current.nodes, edges: lastValid.current.edges, error: registry.error };
     }
+    const result = registryToFlow(registry, onConfigChange);
+    lastValid.current = { nodes: result.nodes, edges: result.edges };
+    return { ...result, error: undefined };
   }, [code, onConfigChange]);
 }
 

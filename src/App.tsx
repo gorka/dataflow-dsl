@@ -271,20 +271,27 @@ function AppInner() {
   const errorCount = Array.from(results.values()).filter(r => r.status === 'error').length;
   const totalTime = Array.from(results.values()).reduce((sum, r) => sum + (r.durationMs ?? 0), 0);
 
+  const lastValidPanel = useRef<{ nodeType?: NodeType; nodeConfig?: GraphNode['config']; nodeIds: string[] }>({ nodeIds: [] });
+
   let selectedNodeType: NodeType | undefined;
   let selectedNodeConfig: GraphNode['config'] | undefined;
   let registryNodeIds: string[] = [];
-  try {
-    const registry = evaluateDsl(code);
-    registryNodeIds = registry.nodes.map(n => n.id);
-    if (selectedNodeId) {
-      const found = registry.nodes.find(n => n.id === selectedNodeId);
-      if (found) {
-        selectedNodeType = found.type;
-        selectedNodeConfig = found.config;
-      }
+  const registry = evaluateDsl(code);
+  registryNodeIds = registry.nodes.map(n => n.id);
+  if (selectedNodeId) {
+    const found = registry.nodes.find(n => n.id === selectedNodeId);
+    if (found) {
+      selectedNodeType = found.type;
+      selectedNodeConfig = found.config;
     }
-  } catch { /* ignore parse errors */ }
+  }
+  if (!registry.error) {
+    lastValidPanel.current = { nodeType: selectedNodeType, nodeConfig: selectedNodeConfig, nodeIds: registryNodeIds };
+  } else if (selectedNodeId) {
+    selectedNodeType = selectedNodeType ?? lastValidPanel.current.nodeType;
+    selectedNodeConfig = selectedNodeConfig ?? lastValidPanel.current.nodeConfig;
+    registryNodeIds = lastValidPanel.current.nodeIds.length > 0 ? lastValidPanel.current.nodeIds : registryNodeIds;
+  }
 
   const handleConfigChange = useCallback((key: string, value: string) => {
     if (selectedNodeId) updateConfig(selectedNodeId, key, value);
