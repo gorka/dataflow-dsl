@@ -1,3 +1,4 @@
+import React from 'react';
 import type { NodeType } from '../../types';
 import styles from '../DocsPanel.module.css';
 
@@ -65,7 +66,7 @@ export function JoinDocs() {
   );
 }
 
-export const NODE_DOCS: Record<NodeType, () => JSX.Element> = {
+export const NODE_DOCS: Record<NodeType, () => React.JSX.Element> = {
   source: SourceDocs,
   filter: FilterDocs,
   map: MapDocs,

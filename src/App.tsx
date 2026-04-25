@@ -139,7 +139,7 @@ function AppInner() {
       });
       const layoutIds = new Set(layoutNodes.map(n => n.id));
       const withFloating = [...merged, ...s.floatingNodes.filter(n => !layoutIds.has(n.id))];
-      dispatch({ type: 'APPLY_NODE_CHANGES', changes: withFloating.map(n => ({ type: 'reset' as const, item: n })) });
+      dispatch({ type: 'APPLY_NODE_CHANGES', changes: withFloating.map(n => ({ type: 'replace' as const, id: n.id, item: n })) });
     } catch { /* ignore */ }
   }, [updateConfig, dispatch]);
 

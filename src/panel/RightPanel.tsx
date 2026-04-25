@@ -35,7 +35,6 @@ export function RightPanel({
   code,
   onCodeChange,
   selectedNodeId,
-  onNodeSelect,
   onNodeHighlight,
   results,
   error,
