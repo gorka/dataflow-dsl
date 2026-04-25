@@ -52,15 +52,30 @@ interface FetchResult {
   rawResponse: unknown;
 }
 
-async function fetchUrl(url: string, config: SourceConfig): Promise<FetchResult> {
+async function fetchUrl(url: string, config: SourceConfig, retries = 2): Promise<FetchResult> {
   const options: RequestInit = { method: config.method ?? 'GET' };
   if (config.body) {
     options.body = JSON.stringify(config.body);
     options.headers = { 'Content-Type': 'application/json' };
   }
-  const response = await fetch(url, options);
-  const data = await response.json();
-  return { collection: normalizeResponse(data), rawResponse: data };
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok && attempt < retries) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      const data = await response.json();
+      return { collection: normalizeResponse(data), rawResponse: data };
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error(`Failed to fetch ${url} after ${retries + 1} attempts`);
 }
 
 function resolveParams(
