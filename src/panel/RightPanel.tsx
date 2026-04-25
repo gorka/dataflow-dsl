@@ -92,11 +92,16 @@ export function RightPanel({
               onChange={onCodeChange}
               selectedNodeId={null}
               onNodeSelect={onNodeHighlight}
-              error={error}
             />
           )}
           {globalTab === 'docs' && <DocsPanel />}
         </div>
+        {error && (
+          <div className={styles.errorBar}>
+            <span className={styles.errorIcon}>!</span>
+            {error}
+          </div>
+        )}
       </div>
     );
   }
@@ -159,6 +164,12 @@ export function RightPanel({
         )}
         {nodeTab === 'docs' && <DocsPanel nodeType={selectedNodeType} />}
       </div>
+      {error && (
+        <div className={styles.errorBar}>
+          <span className={styles.errorIcon}>!</span>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

@@ -14,33 +14,3 @@
   opacity: 0.3;
 }
 
-.errorBar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: #2d1215;
-  border-top: 1px solid #f04747;
-  color: #f04747;
-  font-size: 12px;
-  font-family: monospace;
-  z-index: 10;
-}
-
-.errorIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #f04747;
-  color: #1a1a2e;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}

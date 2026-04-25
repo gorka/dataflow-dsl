@@ -12,7 +12,6 @@ interface DslEditorProps {
   onChange: (code: string) => void;
   selectedNodeId: string | null;
   onNodeSelect?: (nodeId: string | null) => void;
-  error?: string;
   snippetNodeId?: string;
 }
 
@@ -168,7 +167,7 @@ function createCursorTrackExtension(onNodeSelect: (nodeId: string | null) => voi
   });
 }
 
-export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, error, snippetNodeId }: DslEditorProps) {
+export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId }: DslEditorProps) {
   const lastCursorNodeRef = useRef<string | null>(null);
 
   const extensions = useMemo(
@@ -221,12 +220,6 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, error,
           autocompletion: false,
         }}
       />
-      {error && (
-        <div className={styles.errorBar}>
-          <span className={styles.errorIcon}>!</span>
-          {error}
-        </div>
-      )}
     </div>
   );
 }
