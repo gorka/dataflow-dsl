@@ -1,7 +1,6 @@
 import type { Node, Edge, NodeChange, EdgeChange } from '@xyflow/react';
 
 import type { ExecutionResult } from '../types';
-import { EXAMPLES } from '../dsl/examples';
 
 export interface AppState {
   code: string;
@@ -35,7 +34,7 @@ export type AppAction =
   | { type: 'UPDATE_NODE_RESULTS'; results: Map<string, ExecutionResult> };
 
 export const initialState: AppState = {
-  code: EXAMPLES[0].code,
+  code: '',
   codeHistory: [],
   nodes: [],
   floatingNodes: [],

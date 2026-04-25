@@ -217,6 +217,7 @@ function AppInner() {
         onClear={handleClear}
         onExampleSelect={handleExampleSelect}
         isRunning={state.isRunning}
+        showHint={state.code === '' && state.nodes.length === 0}
       />
       <div className={styles.main}>
         <div className={styles.graphArea}>
