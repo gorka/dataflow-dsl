@@ -96,16 +96,16 @@ export function registryToFlow(
 }
 
 function estimateNodeHeight(_node: Node): number {
-  return 60;
+  return 52;
 }
 
 function nodeWidth(_node: Node): number {
-  return 180;
+  return 200;
 }
 
 function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 80 });
+  g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 40 });
   for (const node of nodes) {
     g.setNode(node.id, { width: nodeWidth(node), height: estimateNodeHeight(node) });
   }
