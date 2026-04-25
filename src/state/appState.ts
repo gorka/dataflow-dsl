@@ -1,4 +1,4 @@
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge, NodeChange, EdgeChange } from '@xyflow/react';
 
 import type { ExecutionResult } from '../types';
 import { EXAMPLES } from '../dsl/examples';
@@ -21,11 +21,11 @@ export type AppAction =
   | { type: 'UNDO' }
   | { type: 'CLEAR' }
   | { type: 'LOAD_EXAMPLE'; code: string }
-  | { type: 'SET_NODES'; nodes: Node[] }
-  | { type: 'MERGE_DSL_NODES'; dslNodes: Node[]; floatingNodes: Node[] }
+  | { type: 'APPLY_NODE_CHANGES'; changes: NodeChange[] }
+  | { type: 'APPLY_EDGE_CHANGES'; changes: EdgeChange[] }
+  | { type: 'MERGE_DSL_NODES'; dslNodes: Node[] }
   | { type: 'ADD_FLOATING_NODE'; node: Node }
   | { type: 'REMOVE_FLOATING_NODE'; id: string }
-  | { type: 'SET_FLOATING_NODES'; nodes: Node[] }
   | { type: 'SET_EDGES'; edges: Edge[] }
   | { type: 'SELECT_NODE'; id: string | null }
   | { type: 'HIGHLIGHT_NODE'; id: string | null }

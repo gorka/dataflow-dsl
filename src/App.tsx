@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { ReactFlowProvider, applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
-import type { Node, Edge, NodeChange, EdgeChange, Connection } from '@xyflow/react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import type { NodeChange, EdgeChange, Connection } from '@xyflow/react';
 import { DndProvider } from './graph/DndContext';
 import { GraphCanvas } from './graph/GraphCanvas';
 import { NodeMenu } from './graph/NodeMenu';
@@ -11,9 +11,10 @@ import { useDslFromGraph } from './graph/useDslFromGraph';
 import { evaluateDsl } from './dsl/runtime';
 import { addNodeToCode as addNodeToDsl, removeNodeFromCode } from './dsl/codegen';
 import { executePipeline } from './dsl/execute';
-import { EXAMPLES } from './dsl/examples';
+import { AppProvider } from './state/AppProvider';
+import { useAppState, useAppDispatch } from './state/useAppState';
 import { ErrorBoundary } from './ErrorBoundary';
-import type { ExecutionResult, NodeType, GraphNode } from './types';
+import type { NodeType, GraphNode } from './types';
 import styles from './App.module.css';
 
 const defaultConfigs: Record<string, GraphNode['config']> = {
@@ -24,26 +25,33 @@ const defaultConfigs: Record<string, GraphNode['config']> = {
 };
 
 function AppInner() {
-  const [code, setCode] = useState(EXAMPLES[0].code);
-  const [results, setResults] = useState<Map<string, ExecutionResult>>(new Map());
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [floatingNodes, setFloatingNodes] = useState<Node[]>([]);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [managedEdges, setManagedEdges] = useState<Edge[]>([]);
-  const codeRef = useRef(code);
-  useEffect(() => { codeRef.current = code; }, [code]);
-  const codeHistory = useRef<string[]>([]);
+  const state = useAppState();
+  const dispatch = useAppDispatch();
 
-  const setCodeWithHistory = useCallback((newCode: string | ((prev: string) => string)) => {
-    codeHistory.current.push(codeRef.current);
-    if (codeHistory.current.length > 200) codeHistory.current.shift();
-    setCode(newCode);
-  }, []);
+  const setCodeWithHistory = useCallback(
+    (code: string | ((prev: string) => string)) => {
+      dispatch({ type: 'SET_CODE_WITH_HISTORY', code });
+    },
+    [dispatch],
+  );
 
-  const { addNode: addNodeToCode, updateConfig } = useDslFromGraph(code, setCodeWithHistory);
-  const { nodes: dslNodes, edges, error } = useGraphFromDsl(code, updateConfig);
+  const { addNode: addNodeToCode, updateConfig } = useDslFromGraph(state.code, setCodeWithHistory);
+  const { nodes: dslNodes, edges, error } = useGraphFromDsl(state.code, updateConfig);
+
+  useEffect(() => {
+    dispatch({ type: 'MERGE_DSL_NODES', dslNodes });
+  }, [dslNodes, dispatch]);
+
+  useEffect(() => {
+    dispatch({ type: 'SET_EDGES', edges });
+  }, [edges, dispatch]);
+
+  useEffect(() => {
+    dispatch({ type: 'UPDATE_NODE_RESULTS', results: state.results });
+  }, [state.results, dispatch]);
+
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,13 +60,13 @@ function AppInner() {
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        const prev = codeHistory.current.pop();
-        if (prev !== undefined) setCode(prev);
+        dispatch({ type: 'UNDO' });
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selectedEdge = managedEdges.find(edge => {
+        const s = stateRef.current;
+        const selectedEdge = s.edges.find(edge => {
           const el = document.querySelector(`[aria-label="Edge from ${edge.source} to ${edge.target}"]`);
           return el?.closest('.selected') != null;
         });
@@ -67,98 +75,61 @@ function AppInner() {
           e.preventDefault();
           const edgeType = (selectedEdge.data as { edgeType: string } | undefined)?.edgeType;
           if (edgeType === 'chain') {
-            const registry = evaluateDsl(code);
+            const registry = evaluateDsl(s.code);
             const targetNode = registry.nodes.find(n => n.id === selectedEdge.target);
             if (!targetNode) return;
             setCodeWithHistory(prev => removeNodeFromCode(prev, selectedEdge.target));
-            const currentNode = nodes.find(n => n.id === selectedEdge.target);
+            const currentNode = s.nodes.find(n => n.id === selectedEdge.target);
             const position = currentNode?.position ?? { x: 100, y: 100 };
-            setFloatingNodes(prev => [
-              ...prev,
-              { id: targetNode.id, type: targetNode.type, position, data: { label: targetNode.id, nodeType: targetNode.type, config: targetNode.config, unlinked: true } },
-            ]);
+            dispatch({
+              type: 'ADD_FLOATING_NODE',
+              node: { id: targetNode.id, type: targetNode.type, position, data: { label: targetNode.id, nodeType: targetNode.type, config: targetNode.config, unlinked: true } },
+            });
           } else if (edgeType === 'join') {
             updateConfig(selectedEdge.target, 'nodeId', '""');
           }
           return;
         }
 
-        const selectedNode = nodes.find(n => n.selected);
+        const selectedNode = s.nodes.find(n => n.selected);
         if (selectedNode) {
           e.preventDefault();
-          const isFloating = floatingNodes.some(n => n.id === selectedNode.id);
+          const isFloating = s.floatingNodes.some(n => n.id === selectedNode.id);
           if (isFloating) {
-            setFloatingNodes(prev => prev.filter(n => n.id !== selectedNode.id));
+            dispatch({ type: 'REMOVE_FLOATING_NODE', id: selectedNode.id });
           } else {
             setCodeWithHistory(prev => removeNodeFromCode(prev, selectedNode.id));
           }
-          if (selectedNodeId === selectedNode.id) selectNode(null);
+          if (s.selectedNodeId === selectedNode.id) {
+            dispatch({ type: 'SELECT_NODE', id: null });
+          }
         }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [managedEdges, code, nodes, floatingNodes, selectedNodeId, setCodeWithHistory, updateConfig]);
+  }, [dispatch, setCodeWithHistory, updateConfig]);
 
-  useEffect(() => {
-    setManagedEdges(edges);
-  }, [edges]);
-
-  useEffect(() => {
-    const dslIds = new Set(dslNodes.map(n => n.id));
-    setFloatingNodes(prev => {
-      const cleaned = prev.filter(n => !dslIds.has(n.id));
-      return cleaned.length === prev.length ? prev : cleaned;
-    });
-    setNodes(prev => {
-      const prevMap = new Map(prev.map(n => [n.id, n]));
-      const merged = dslNodes.map(dn => {
-        const existing = prevMap.get(dn.id);
-        if (existing) {
-          return { ...dn, position: existing.position, selected: existing.selected, data: { ...dn.data, result: (existing.data as Record<string, unknown>).result, role: (dn.data as Record<string, unknown>).role, connected: (dn.data as Record<string, unknown>).connected } };
-        }
-        return dn;
-      });
-      const uniqueFloating = floatingNodes.filter(n => !dslIds.has(n.id));
-      return [...merged, ...uniqueFloating];
-    });
-  }, [dslNodes, floatingNodes]);
-
-  useEffect(() => {
-    setNodes(prev => prev.map(n => {
-      const result = results.get(n.id);
-      return { ...n, data: { ...n.data, result } };
-    }));
-  }, [results]);
-
-  const selectNode = useCallback((id: string | null) => {
-    setSelectedNodeId(id);
-    setHighlightedNodeId(id);
-  }, []);
-
-  useEffect(() => {
-    setNodes(prev => prev.map(n => ({
-      ...n,
-      selected: n.id === highlightedNodeId,
-    })));
-  }, [highlightedNodeId]);
+  const selectNode = useCallback(
+    (id: string | null) => dispatch({ type: 'SELECT_NODE', id }),
+    [dispatch],
+  );
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const filtered = changes.filter(c => c.type !== 'remove');
-    setNodes(prev => applyNodeChanges(filtered, prev));
-  }, []);
+    dispatch({ type: 'APPLY_NODE_CHANGES', changes: filtered });
+  }, [dispatch]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     const filtered = changes.filter(c => c.type !== 'remove');
-    if (filtered.length > 0) {
-      setManagedEdges(prev => applyEdgeChanges(filtered, prev));
-    }
-  }, []);
+    if (filtered.length > 0) dispatch({ type: 'APPLY_EDGE_CHANGES', changes: filtered });
+  }, [dispatch]);
 
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
+    const s = stateRef.current;
 
-    const floatingNode = floatingNodes.find(n => n.id === connection.target);
+    const floatingNode = s.floatingNodes.find(n => n.id === connection.target);
     if (floatingNode) {
       const nodeData = floatingNode.data as { nodeType: string; config: GraphNode['config'] };
       const graphNode: GraphNode = {
@@ -168,84 +139,73 @@ function AppInner() {
         parentId: connection.source,
       };
       setCodeWithHistory(prev => addNodeToDsl(prev, graphNode));
-      setFloatingNodes(prev => prev.filter(n => n.id !== connection.target));
+      dispatch({ type: 'REMOVE_FLOATING_NODE', id: connection.target! });
       return;
     }
 
-    const registry = evaluateDsl(code);
+    const registry = evaluateDsl(s.code);
     const targetNode = registry.nodes.find(n => n.id === connection.target);
     if (targetNode?.type === 'join' && targetNode.parentId !== connection.source) {
       updateConfig(connection.target, 'nodeId', JSON.stringify(connection.source));
     }
-  }, [floatingNodes, code, updateConfig]);
+  }, [setCodeWithHistory, updateConfig, dispatch]);
 
   const addNode = useCallback((type: NodeType, id: string, parentId?: string, position?: { x: number; y: number }) => {
     if (type === 'source' || parentId) {
       addNodeToCode(type, id, parentId);
-      setFloatingNodes(prev => prev.filter(n => n.id !== id));
+      dispatch({ type: 'REMOVE_FLOATING_NODE', id });
     } else {
       const pos = position ?? { x: 100, y: 100 };
-      setFloatingNodes(prev => [
-        ...prev,
-        {
-          id,
-          type,
-          position: pos,
-          data: { label: id, nodeType: type, config: defaultConfigs[type], unlinked: true },
-        },
-      ]);
+      dispatch({
+        type: 'ADD_FLOATING_NODE',
+        node: { id, type, position: pos, data: { label: id, nodeType: type, config: defaultConfigs[type], unlinked: true } },
+      });
     }
-  }, [addNodeToCode]);
+  }, [addNodeToCode, dispatch]);
 
   const handleRun = useCallback(async () => {
-    const registry = evaluateDsl(code);
+    const registry = evaluateDsl(state.code);
     if (registry.error) return;
-    setIsRunning(true);
-    setResults(new Map());
+    dispatch({ type: 'RUN_START' });
     try {
       const execResults = await executePipeline(registry, (nodeId, result) => {
-        setResults(prev => new Map(prev).set(nodeId, result));
+        dispatch({ type: 'NODE_RESULT', nodeId, result });
       });
-      setResults(execResults);
+      dispatch({ type: 'RUN_COMPLETE', results: execResults });
     } catch (e) {
       console.error('Pipeline execution failed:', e);
-    } finally {
-      setIsRunning(false);
+      dispatch({ type: 'RUN_COMPLETE', results: new Map() });
     }
-  }, [code]);
+  }, [state.code, dispatch]);
 
   const handleAutoLayout = useCallback(() => {
     try {
-      const registry = evaluateDsl(code);
+      const s = stateRef.current;
+      const registry = evaluateDsl(s.code);
       const { nodes: layoutNodes } = registryToFlow(registry, updateConfig);
-      setNodes(prev => {
-        const prevMap = new Map(prev.map(n => [n.id, n]));
-        const merged = layoutNodes.map(n => {
-          const existing = prevMap.get(n.id);
-          if (existing) {
-            return { ...n, selected: existing.selected, data: { ...n.data, result: (existing.data as Record<string, unknown>).result } };
-          }
-          return n;
-        });
-        const layoutIds = new Set(layoutNodes.map(n => n.id));
-        return [...merged, ...floatingNodes.filter(n => !layoutIds.has(n.id))];
+      const prevMap = new Map(s.nodes.map(n => [n.id, n]));
+      const merged = layoutNodes.map(n => {
+        const existing = prevMap.get(n.id);
+        if (existing) {
+          return { ...n, selected: existing.selected, data: { ...n.data, result: (existing.data as Record<string, unknown>).result } };
+        }
+        return n;
       });
+      const layoutIds = new Set(layoutNodes.map(n => n.id));
+      const withFloating = [...merged, ...s.floatingNodes.filter(n => !layoutIds.has(n.id))];
+      dispatch({ type: 'APPLY_NODE_CHANGES', changes: withFloating.map(n => ({ type: 'reset' as const, item: n })) });
     } catch { /* ignore */ }
-  }, [code, updateConfig, floatingNodes]);
+  }, [updateConfig, dispatch]);
 
-  const handleClear = useCallback(() => {
-    setCodeWithHistory('');
-    setResults(new Map());
-    selectNode(null);
-    setFloatingNodes([]);
-  }, [setCodeWithHistory, selectNode]);
+  const handleClear = useCallback(
+    () => dispatch({ type: 'CLEAR' }),
+    [dispatch],
+  );
 
-  const handleExampleSelect = useCallback((exampleCode: string) => {
-    setCodeWithHistory(exampleCode);
-    setResults(new Map());
-    selectNode(null);
-    setFloatingNodes([]);
-  }, [setCodeWithHistory, selectNode]);
+  const handleExampleSelect = useCallback(
+    (exampleCode: string) => dispatch({ type: 'LOAD_EXAMPLE', code: exampleCode }),
+    [dispatch],
+  );
 
   const [panelWidth, setPanelWidth] = useState(480);
   const dragging = useRef(false);
@@ -267,19 +227,25 @@ function AppInner() {
     document.addEventListener('mouseup', onMouseUp);
   }, []);
 
-  const nodeCount = nodes.length;
-  const errorCount = Array.from(results.values()).filter(r => r.status === 'error').length;
-  const totalTime = Array.from(results.values()).reduce((sum, r) => sum + (r.durationMs ?? 0), 0);
+  const nodeCount = state.nodes.length;
+  const errorCount = useMemo(
+    () => Array.from(state.results.values()).filter(r => r.status === 'error').length,
+    [state.results],
+  );
+  const totalTime = useMemo(
+    () => Array.from(state.results.values()).reduce((sum, r) => sum + (r.durationMs ?? 0), 0),
+    [state.results],
+  );
 
   const lastValidPanel = useRef<{ nodeType?: NodeType; nodeConfig?: GraphNode['config']; nodeIds: string[] }>({ nodeIds: [] });
 
   let selectedNodeType: NodeType | undefined;
   let selectedNodeConfig: GraphNode['config'] | undefined;
   let registryNodeIds: string[] = [];
-  const registry = evaluateDsl(code);
+  const registry = evaluateDsl(state.code);
   registryNodeIds = registry.nodes.map(n => n.id);
-  if (selectedNodeId) {
-    const found = registry.nodes.find(n => n.id === selectedNodeId);
+  if (state.selectedNodeId) {
+    const found = registry.nodes.find(n => n.id === state.selectedNodeId);
     if (found) {
       selectedNodeType = found.type;
       selectedNodeConfig = found.config;
@@ -287,15 +253,15 @@ function AppInner() {
   }
   if (!registry.error) {
     lastValidPanel.current = { nodeType: selectedNodeType, nodeConfig: selectedNodeConfig, nodeIds: registryNodeIds };
-  } else if (selectedNodeId) {
+  } else if (state.selectedNodeId) {
     selectedNodeType = selectedNodeType ?? lastValidPanel.current.nodeType;
     selectedNodeConfig = selectedNodeConfig ?? lastValidPanel.current.nodeConfig;
     registryNodeIds = lastValidPanel.current.nodeIds.length > 0 ? lastValidPanel.current.nodeIds : registryNodeIds;
   }
 
   const handleConfigChange = useCallback((key: string, value: string) => {
-    if (selectedNodeId) updateConfig(selectedNodeId, key, value);
-  }, [selectedNodeId, updateConfig]);
+    if (state.selectedNodeId) updateConfig(state.selectedNodeId, key, value);
+  }, [state.selectedNodeId, updateConfig]);
 
   return (
     <div className={styles.layout}>
@@ -304,15 +270,15 @@ function AppInner() {
         onAutoLayout={handleAutoLayout}
         onClear={handleClear}
         onExampleSelect={handleExampleSelect}
-        isRunning={isRunning}
+        isRunning={state.isRunning}
       />
       <div className={styles.main}>
         <div className={styles.graphArea}>
           <NodeMenu />
           <GraphCanvas
-            nodes={nodes}
-            edges={managedEdges}
-            selectedNodeId={selectedNodeId}
+            nodes={state.nodes}
+            edges={state.edges}
+            selectedNodeId={state.selectedNodeId}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -323,12 +289,12 @@ function AppInner() {
         <div className={styles.divider} onMouseDown={onDividerMouseDown} />
         <div className={styles.panel} style={{ width: panelWidth, flex: 'none' }}>
           <RightPanel
-            code={code}
-            onCodeChange={setCode}
-            selectedNodeId={selectedNodeId}
+            code={state.code}
+            onCodeChange={(c: string) => dispatch({ type: 'SET_CODE', code: c })}
+            selectedNodeId={state.selectedNodeId}
             onNodeSelect={selectNode}
-            onNodeHighlight={setHighlightedNodeId}
-            results={results}
+            onNodeHighlight={(id: string | null) => dispatch({ type: 'HIGHLIGHT_NODE', id })}
+            results={state.results}
             error={error}
             selectedNodeType={selectedNodeType}
             selectedNodeConfig={selectedNodeConfig}
@@ -340,7 +306,7 @@ function AppInner() {
       <div className={styles.statusBar}>
         <span>{nodeCount} nodes</span>
         {error && <span className={styles.statusError}>{error}</span>}
-        {results.size > 0 && (
+        {state.results.size > 0 && (
           <>
             <span>·</span>
             <span>{Math.round(totalTime)}ms total</span>
@@ -357,7 +323,9 @@ export default function App() {
     <ErrorBoundary>
       <ReactFlowProvider>
         <DndProvider>
-          <AppInner />
+          <AppProvider>
+            <AppInner />
+          </AppProvider>
         </DndProvider>
       </ReactFlowProvider>
     </ErrorBoundary>
