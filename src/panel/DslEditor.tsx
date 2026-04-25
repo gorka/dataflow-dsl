@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -167,8 +167,40 @@ function createCursorTrackExtension(onNodeSelect: (nodeId: string | null) => voi
   });
 }
 
+function validateSnippet(text: string): string | null {
+  const lines = text.split('\n');
+  const nodeStartIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (NODE_CALL_RE.test(lines[i])) nodeStartIndices.push(i);
+  }
+  if (nodeStartIndices.length > 1) return 'Only one node definition allowed per editor';
+  if (nodeStartIndices.length === 1) {
+    const start = nodeStartIndices[0];
+    let depth = 0;
+    let endLine = lines.length - 1;
+    for (let j = start; j < lines.length; j++) {
+      for (const ch of lines[j]) {
+        if (ch === '(' || ch === '{' || ch === '[') depth++;
+        else if (ch === ')' || ch === '}' || ch === ']') depth--;
+      }
+      if (depth <= 0) { endLine = j; break; }
+    }
+    const before = lines.slice(0, start).join('\n').trim();
+    const after = lines.slice(endLine + 1).join('\n').trim();
+    if (before || after) return 'Content outside the node definition is not allowed';
+  }
+  return null;
+}
+
 export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId }: DslEditorProps) {
   const lastCursorNodeRef = useRef<string | null>(null);
+  const [snippetOverride, setSnippetOverride] = useState<string | null>(null);
+  const [snippetError, setSnippetError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSnippetOverride(null);
+    setSnippetError(null);
+  }, [snippetNodeId]);
 
   const extensions = useMemo(
     () => {
@@ -186,12 +218,20 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippe
   if (snippetNodeId) {
     const snippet = extractNodeSnippet(code, snippetNodeId);
     const handleSnippetChange = (newSnippet: string) => {
+      const error = validateSnippet(newSnippet);
+      if (error) {
+        setSnippetOverride(newSnippet);
+        setSnippetError(error);
+        return;
+      }
+      setSnippetOverride(null);
+      setSnippetError(null);
       onChange(spliceNodeSnippet(code, snippetNodeId, newSnippet));
     };
     return (
       <div className={styles.editor}>
         <CodeMirror
-          value={snippet || `// Node "${snippetNodeId}" not found in DSL`}
+          value={snippetOverride ?? (snippet || `// Node "${snippetNodeId}" not found in DSL`)}
           onChange={handleSnippetChange}
           theme={oneDark}
           extensions={snippetExtensions}
@@ -202,6 +242,12 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippe
             autocompletion: false,
           }}
         />
+        {snippetError && (
+          <div className={styles.snippetError}>
+            <span className={styles.snippetErrorIcon}>!</span>
+            {snippetError}
+          </div>
+        )}
       </div>
     );
   }
