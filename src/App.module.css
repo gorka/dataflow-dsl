@@ -27,11 +27,22 @@
   display: flex;
 }
 
+.divider {
+  width: 4px;
+  cursor: col-resize;
+  background: #2a2a35;
+  transition: background 0.15s;
+}
+
+.divider:hover {
+  background: #5865f2;
+}
+
 .panel {
-  flex: 1;
-  border-left: 1px solid #2a2a35;
+  border-left: none;
   display: flex;
   flex-direction: column;
+  min-width: 200px;
 }
 
 .statusBar {

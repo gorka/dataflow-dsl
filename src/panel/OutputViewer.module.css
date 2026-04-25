@@ -52,6 +52,32 @@
   color: #43b581;
 }
 
+.toggleBar {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #2a2a35;
+  background: #13131a;
+}
+
+.toggleBtn {
+  all: unset;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #777;
+  border-radius: 3px;
+}
+
+.toggleBtn:hover {
+  color: #ccc;
+}
+
+.activeToggle {
+  color: #e0e0e0;
+  background: #2a2a3a;
+}
+
 .json {
   flex: 1;
   overflow: auto;

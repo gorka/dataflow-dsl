@@ -45,6 +45,7 @@ function serializeValue(v: unknown): string {
   if (typeof v === 'string') return JSON.stringify(v);
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   if (v === null) return 'null';
+  if (isRefValue(v)) return `ref(${JSON.stringify(v.nodeId)}, ${JSON.stringify(v.field)})`;
   if (Array.isArray(v)) return `[${v.map(serializeValue).join(', ')}]`;
   if (typeof v === 'object') {
     const entries = Object.entries(v as Record<string, unknown>)
@@ -55,18 +56,11 @@ function serializeValue(v: unknown): string {
   return String(v);
 }
 
-function serializeEndpoint(endpoint: string | RefValue): string {
-  if (isRefValue(endpoint)) {
-    return `ref(${endpoint.nodeId}, ${JSON.stringify(endpoint.field)})`;
-  }
-  return JSON.stringify(endpoint);
-}
-
 function generateSourceLine(node: GraphNode): string {
   const config = node.config as SourceConfig;
-  const parts: string[] = [`endpoint: ${serializeEndpoint(config.endpoint)}`];
+  const parts: string[] = [`endpoint: ${JSON.stringify(config.endpoint)}`];
 
-  if (config.method && config.method !== 'GET') {
+  if (config.method) {
     parts.push(`method: ${JSON.stringify(config.method)}`);
   }
   if (config.params && Object.keys(config.params).length > 0) {
@@ -79,7 +73,7 @@ function generateSourceLine(node: GraphNode): string {
     parts.push(`body: ${serializeValue(config.body)}`);
   }
 
-  return `const ${node.id} = source(${JSON.stringify(node.id)}, { ${parts.join(', ')} });`;
+  return `source(${JSON.stringify(node.id)}, { ${parts.join(', ')} });`;
 }
 
 function generateTransformLine(node: GraphNode): string {
@@ -88,28 +82,22 @@ function generateTransformLine(node: GraphNode): string {
   switch (node.type) {
     case 'filter': {
       const { expression } = node.config as FilterConfig;
-      return `const ${node.id} = ${parent}.filter(${JSON.stringify(expression)});`;
+      return `filter(${JSON.stringify(node.id)}, ${JSON.stringify(parent)}, ${JSON.stringify(expression)});`;
     }
     case 'map': {
       const { mapping } = node.config as MapConfig;
-      const entries = Object.entries(mapping)
-        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-        .join(', ');
-      return `const ${node.id} = ${parent}.map({ ${entries} });`;
+      return `map(${JSON.stringify(node.id)}, ${JSON.stringify(parent)}, ${serializeValue(mapping)});`;
     }
     case 'select': {
       const { fields } = node.config as SelectConfig;
-      return `const ${node.id} = ${parent}.select(${serializeValue(fields)});`;
+      return `select(${JSON.stringify(node.id)}, ${JSON.stringify(parent)}, ${serializeValue(fields)});`;
     }
     case 'join': {
       const { nodeId, as, on } = node.config as JoinConfig;
-      if (as !== undefined) {
-        return `const ${node.id} = ${parent}.join(${nodeId}, { as: ${JSON.stringify(as)} });`;
-      }
-      if (on !== undefined) {
-        return `const ${node.id} = ${parent}.join(${nodeId}, { on: ${serializeValue(on)} });`;
-      }
-      return `const ${node.id} = ${parent}.join(${nodeId}, {});`;
+      const opts: string[] = [];
+      if (as !== undefined) opts.push(`as: ${JSON.stringify(as)}`);
+      if (on !== undefined) opts.push(`on: ${serializeValue(on)}`);
+      return `join(${JSON.stringify(node.id)}, ${JSON.stringify(parent)}, ${JSON.stringify(nodeId)}, { ${opts.join(', ')} });`;
     }
     default:
       throw new Error(`Unknown node type: ${(node as GraphNode).type}`);
@@ -128,6 +116,7 @@ export function generateDsl(registry: NodeRegistry): string {
 }
 
 export function addNodeToCode(code: string, node: GraphNode): string {
+  if (node.type !== 'source' && !node.parentId) return code;
   const line = generateNodeLine(node);
   return code.trimEnd() + '\n' + line;
 }
@@ -137,13 +126,24 @@ export function removeNodeFromCode(code: string, nodeId: string): string {
 
   const program = ast as unknown as {
     type: string;
-    body: Array<{ type: string; declarations?: Array<{ id: { name: string } }> }>;
+    body: Array<{
+      type: string;
+      expression?: {
+        type: string;
+        callee?: { name?: string };
+        arguments?: Array<{ type: string; value?: string }>;
+      };
+    }>;
   };
 
   program.body = program.body.filter((stmt) => {
-    if (stmt.type !== 'VariableDeclaration') return true;
-    const decls = stmt.declarations ?? [];
-    return !decls.some((d) => d.id.name === nodeId);
+    if (stmt.type !== 'ExpressionStatement') return true;
+    const expr = stmt.expression;
+    if (!expr || expr.type !== 'CallExpression') return true;
+    const args = expr.arguments ?? [];
+    if (args.length < 1) return true;
+    const firstArg = args[0];
+    return !(firstArg.type === 'Literal' && firstArg.value === nodeId);
   });
 
   return generate(ast as Parameters<typeof generate>[0]);
@@ -157,7 +157,7 @@ export function updateNodeConfigInCode(
 ): string {
   const ast = acorn.parse(code, { ecmaVersion: 2020, sourceType: 'script' });
   const newValueAst = (
-    acorn.parse(newValue, { ecmaVersion: 2020, sourceType: 'script' }) as unknown as {
+    acorn.parse(`(${newValue})`, { ecmaVersion: 2020, sourceType: 'script' }) as unknown as {
       body: Array<{ expression: unknown }>;
     }
   ).body[0].expression;
@@ -165,34 +165,67 @@ export function updateNodeConfigInCode(
   const program = ast as unknown as {
     body: Array<{
       type: string;
-      declarations?: Array<{
-        id: { name: string };
-        init: {
+      expression?: {
+        type: string;
+        callee?: { name?: string };
+        arguments?: Array<{
           type: string;
-          arguments: Array<{
-            type: string;
-            properties: Array<{
-              key: { type: string; name?: string; value?: string };
-              value: unknown;
-            }>;
+          value?: string;
+          properties?: Array<{
+            key: { type: string; name?: string; value?: string };
+            value: unknown;
           }>;
-        };
-      }>;
+        }>;
+      };
     }>;
   };
 
   for (const stmt of program.body) {
-    if (stmt.type !== 'VariableDeclaration') continue;
-    for (const decl of stmt.declarations ?? []) {
-      if (decl.id.name !== nodeId) continue;
-      const callArgs = decl.init?.arguments;
-      if (!callArgs || callArgs.length < 2) continue;
-      const configArg = callArgs[1];
+    if (stmt.type !== 'ExpressionStatement') continue;
+    const expr = stmt.expression;
+    if (!expr || expr.type !== 'CallExpression') continue;
+    const args = expr.arguments ?? [];
+    if (args.length < 1) continue;
+    if (!(args[0].type === 'Literal' && args[0].value === nodeId)) continue;
+
+    const callee = expr.callee?.name;
+
+    if (callee === 'source' && args.length >= 2) {
+      const configArg = args[1];
       if (configArg.type !== 'ObjectExpression') continue;
-      for (const prop of configArg.properties) {
+      for (const prop of configArg.properties ?? []) {
         const propKey = prop.key.name ?? prop.key.value;
         if (propKey === key) {
           prop.value = newValueAst;
+        }
+      }
+    }
+
+    if (callee === 'filter' && key === 'expression' && args.length >= 3) {
+      args[2] = newValueAst as typeof args[2];
+    }
+
+    if (callee === 'map' && key === 'mapping' && args.length >= 3) {
+      args[2] = newValueAst as typeof args[2];
+    }
+
+    if (callee === 'select' && key === 'fields' && args.length >= 3) {
+      args[2] = newValueAst as typeof args[2];
+    }
+
+    if (callee === 'join') {
+      if (key === 'nodeId' && args.length >= 3) {
+        args[2] = newValueAst as typeof args[2];
+      }
+      if ((key === 'as' || key === 'on') && args.length >= 4) {
+        const optsArg = args[3];
+        if (optsArg.type === 'ObjectExpression') {
+          for (const prop of optsArg.properties ?? []) {
+            const propKey = prop.key.name ?? prop.key.value;
+            if (propKey === key) {
+              prop.value = newValueAst;
+            }
+          }
         }
       }
     }

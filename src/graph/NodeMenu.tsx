@@ -6,7 +6,7 @@ const NODE_ITEMS: { type: NodeType; label: string; color: string }[] = [
   { type: 'source', label: 'Source', color: '#5865f2' },
   { type: 'filter', label: 'Filter', color: '#43b581' },
   { type: 'map', label: 'Map', color: '#faa61a' },
-  { type: 'select', label: 'Select', color: '#5865f2' },
+  { type: 'select', label: 'Select', color: '#9b59b6' },
   { type: 'join', label: 'Join', color: '#f04747' },
 ];
 

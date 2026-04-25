@@ -7,7 +7,7 @@ export interface RefValue {
 }
 
 export interface SourceConfig {
-  endpoint: string | RefValue;
+  endpoint: string;
   method?: 'GET' | 'POST';
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;
@@ -48,6 +48,7 @@ export interface GraphEdge {
 export interface NodeRegistry {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  error?: string;
 }
 
 export interface Collection<T = Record<string, unknown>> {
@@ -56,8 +57,9 @@ export interface Collection<T = Record<string, unknown>> {
 
 export interface ExecutionResult {
   nodeId: string;
-  status: 'pending' | 'running' | 'success' | 'error';
+  status: 'pending' | 'running' | 'success' | 'error' | 'skipped';
   data?: Collection;
+  rawResponse?: unknown;
   error?: string;
   durationMs?: number;
 }

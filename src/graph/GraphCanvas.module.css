@@ -2,3 +2,41 @@
   flex: 1;
   height: 100%;
 }
+
+.controlBar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #1e1e2a;
+  border-radius: 6px;
+  border: 1px solid #2a2a35;
+}
+
+.controlBtn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #999;
+  background: transparent;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.controlBtn:hover {
+  color: #e0e0e0;
+  background: #2a2a3a;
+}
+
+.controlBtn.active {
+  color: #5865f2;
+  background: #1a1a2e;
+}
+
+.canvas :global(.react-flow__edge.selected) path {
+  stroke: #fff !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+}

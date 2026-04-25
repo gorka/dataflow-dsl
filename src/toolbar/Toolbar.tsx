@@ -1,13 +1,15 @@
+import { EXAMPLES } from '../dsl/examples';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
   onRun: () => void;
   onAutoLayout: () => void;
   onClear: () => void;
+  onExampleSelect: (code: string) => void;
   isRunning: boolean;
 }
 
-export function Toolbar({ onRun, onAutoLayout, onClear, isRunning }: ToolbarProps) {
+export function Toolbar({ onRun, onAutoLayout, onClear, onExampleSelect, isRunning }: ToolbarProps) {
   return (
     <div className={styles.toolbar}>
       <div className={styles.left}>
@@ -16,6 +18,19 @@ export function Toolbar({ onRun, onAutoLayout, onClear, isRunning }: ToolbarProp
         </button>
         <button className={styles.button} onClick={onAutoLayout}>Auto-layout</button>
         <button className={styles.button} onClick={onClear}>Clear</button>
+        <select
+          className={styles.exampleSelect}
+          value=""
+          onChange={e => {
+            const idx = Number(e.target.value);
+            if (!isNaN(idx) && EXAMPLES[idx]) onExampleSelect(EXAMPLES[idx].code);
+          }}
+        >
+          <option value="" disabled>Load example...</option>
+          {EXAMPLES.map((ex, i) => (
+            <option key={i} value={i}>{ex.name}</option>
+          ))}
+        </select>
       </div>
       <div className={styles.title}>Dataflow DSL</div>
     </div>

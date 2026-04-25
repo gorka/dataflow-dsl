@@ -1,0 +1,123 @@
+.config {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 11px;
+  color: #888;
+  text-transform: lowercase;
+}
+
+.fieldInput {
+  background: #16162a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #93c5fd;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 6px 8px;
+  width: 100%;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.fieldInput:focus {
+  border-color: #5865f2;
+}
+
+.fieldSelect {
+  background: #16162a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #93c5fd;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 6px 8px;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.fieldSelect:focus {
+  border-color: #5865f2;
+}
+
+.paramRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paramKey {
+  font-size: 12px;
+  color: #b0b0c0;
+  font-family: monospace;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+.modeToggle {
+  all: unset;
+  font-size: 10px;
+  font-family: monospace;
+  color: #666;
+  background: #1e1e2a;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modeToggle:hover {
+  color: #aaa;
+  background: #2a2a3a;
+}
+
+.modeRef {
+  color: #9b59b6;
+  background: rgba(155, 89, 182, 0.15);
+}
+
+.refInputs {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.refSelect {
+  background: #16162a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #c4a7e7;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 50%;
+  outline: none;
+  cursor: pointer;
+}
+
+.refInput {
+  background: #16162a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #c4a7e7;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 50%;
+  outline: none;
+}

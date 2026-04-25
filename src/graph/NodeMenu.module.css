@@ -1,11 +1,11 @@
 .menu {
-  width: 64px;
+  width: 88px;
   background: #13131a;
   border-right: 1px solid #2a2a35;
-  padding: 12px 6px;
+  padding: 14px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .title {
@@ -18,8 +18,8 @@
 }
 
 .item {
-  padding: 8px 6px;
-  font-size: 11px;
+  padding: 12px 8px;
+  font-size: 13px;
   color: #ccc;
   background: #1e1e2e;
   border-radius: 4px;

@@ -1,5 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
+import { ResultLine } from '../../shared/ResultLine';
 import type { NodeType, FilterConfig, MapConfig, SelectConfig, JoinConfig, ExecutionResult } from '../../types';
 import styles from './TransformNode.module.css';
 
@@ -8,97 +9,45 @@ export interface TransformNodeData {
   nodeType: NodeType;
   config: FilterConfig | MapConfig | SelectConfig | JoinConfig;
   result?: ExecutionResult;
+  unlinked?: boolean;
   onConfigChange?: (key: string, value: string) => void;
+  nodeIds?: string[];
+  role?: 'input' | 'output';
+  connected?: boolean;
 }
 
 const TYPE_COLORS: Record<string, string> = {
   filter: '#43b581',
   map: '#faa61a',
-  select: '#5865f2',
+  select: '#9b59b6',
   join: '#f04747',
 };
 
-function ResultLine({ result }: { result?: ExecutionResult }) {
-  if (!result) return null;
-  if (result.status === 'running') return <div className={`${styles.result} ${styles.running}`}>⟳ running...</div>;
-  if (result.status === 'error') return <div className={`${styles.result} ${styles.error}`}>✗ {result.error}</div>;
-  if (result.status === 'success') {
-    const count = result.data?.items.length ?? 0;
-    const ms = result.durationMs ?? 0;
-    return <div className={`${styles.result} ${styles.success}`}>✓ {count} items · {ms}ms</div>;
-  }
-  return null;
-}
-
-function ConfigDisplay({ nodeType, config, onConfigChange }: {
-  nodeType: NodeType;
-  config: FilterConfig | MapConfig | SelectConfig | JoinConfig;
-  onConfigChange?: (key: string, value: string) => void;
-}) {
-  if (nodeType === 'filter') {
-    const fc = config as FilterConfig;
-    return (
-      <div className={styles.field}>
-        <span className={styles.fieldLabel}>expression</span>
-        <input
-          className={styles.fieldInput}
-          value={fc.expression}
-          onChange={e => onConfigChange?.('expression', e.target.value)}
-        />
-      </div>
-    );
-  }
-
-  if (nodeType === 'map') {
-    const mc = config as MapConfig;
-    return (
-      <div className={styles.field}>
-        <span className={styles.fieldLabel}>mapping</span>
-        <span className={styles.fieldValue}>{JSON.stringify(mc.mapping)}</span>
-      </div>
-    );
-  }
-
-  if (nodeType === 'select') {
-    const sc = config as SelectConfig;
-    return (
-      <div className={styles.field}>
-        <span className={styles.fieldLabel}>fields</span>
-        <span className={styles.fieldValue}>{sc.fields.join(', ')}</span>
-      </div>
-    );
-  }
-
-  if (nodeType === 'join') {
-    const jc = config as JoinConfig;
-    const joinDetail = jc.as ? `as ${jc.as}` : jc.on ? `on ${jc.on[0]}, ${jc.on[1]}` : '';
-    return (
-      <div className={styles.field}>
-        <span className={styles.fieldLabel}>join</span>
-        <span className={styles.fieldValue}>{joinDetail}</span>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 export function TransformNode(props: NodeProps) {
-  const { label, nodeType, config, result, onConfigChange } = props.data as unknown as TransformNodeData;
+  const { label, nodeType, result, unlinked, role, connected } = props.data as unknown as TransformNodeData;
   const color = TYPE_COLORS[nodeType] ?? '#5865f2';
 
   return (
-    <div className={styles.node} style={{ borderColor: color }}>
-      <Handle type="target" position={Position.Left} className={styles.handle} style={{ background: color }} />
-      <div className={styles.header} style={{ background: color }}>
-        <span className={styles.label}>{label}</span>
-        <span className={styles.badge}>{nodeType.toUpperCase()}</span>
+    <div className={styles.wrapper}>
+      {role === 'input' && <div className={styles.arrowAbove}>▼</div>}
+      <div className={`${styles.node} ${role ? styles[role] : ''}`} style={{ borderColor: unlinked || connected === false ? '#666' : color, opacity: unlinked || connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
+        <Handle type="target" position={Position.Top} className={styles.handle} style={{ background: color }} />
+        <div className={styles.header} style={{ background: unlinked || connected === false ? '#444' : color }}>
+          <span className={styles.label}>{label}</span>
+          <span className={styles.badge}>{nodeType.toUpperCase()}</span>
+        </div>
+        {unlinked && <div className={`${styles.result} ${styles.error}`}>unlinked</div>}
+        <ResultLine
+          result={result}
+          className={styles.result}
+          successClass={styles.success}
+          errorClass={styles.error}
+          runningClass={styles.running}
+          skippedClass={styles.skipped}
+        />
+        <Handle type="source" position={Position.Bottom} className={styles.handle} style={{ background: color }} />
       </div>
-      <div className={styles.body}>
-        <ConfigDisplay nodeType={nodeType} config={config} onConfigChange={onConfigChange} />
-      </div>
-      <ResultLine result={result} />
-      <Handle type="source" position={Position.Right} className={styles.handle} style={{ background: color }} />
+      {role === 'output' && <div className={styles.arrowBelow}>▼</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import type { SourceConfig, ExecutionResult, RefValue } from '../../types';
+import { ResultLine } from '../../shared/ResultLine';
+import type { SourceConfig, ExecutionResult } from '../../types';
 import styles from './SourceNode.module.css';
 
 export interface SourceNodeData {
@@ -8,71 +9,34 @@ export interface SourceNodeData {
   config: SourceConfig;
   result?: ExecutionResult;
   onConfigChange?: (key: string, value: string) => void;
-}
-
-function isRefValue(val: unknown): val is RefValue {
-  return typeof val === 'object' && val !== null && (val as RefValue).__ref === true;
-}
-
-function formatEndpoint(endpoint: string | RefValue): string {
-  if (isRefValue(endpoint)) return `ref(${endpoint.nodeId}, "${endpoint.field}")`;
-  return endpoint;
-}
-
-function ResultLine({ result }: { result?: ExecutionResult }) {
-  if (!result) return null;
-  if (result.status === 'running') return <div className={`${styles.result} ${styles.running}`}>⟳ running...</div>;
-  if (result.status === 'error') return <div className={`${styles.result} ${styles.error}`}>✗ {result.error}</div>;
-  if (result.status === 'success') {
-    const count = result.data?.items.length ?? 0;
-    const ms = result.durationMs ?? 0;
-    return <div className={`${styles.result} ${styles.success}`}>✓ {count} items · {ms}ms</div>;
-  }
-  return null;
+  nodeIds?: string[];
+  role?: 'input' | 'output';
+  connected?: boolean;
 }
 
 export function SourceNode(props: NodeProps) {
-  const { label, config, result, onConfigChange } = props.data as unknown as SourceNodeData;
-  const endpointIsRef = isRefValue(config.endpoint);
-  const endpointValue = formatEndpoint(config.endpoint);
-  const paramsJson = config.params ? JSON.stringify(config.params) : '';
+  const { label, result, role, connected } = props.data as unknown as SourceNodeData;
 
   return (
-    <div className={styles.node} style={{ borderColor: '#5865f2' }}>
-      <Handle type="target" position={Position.Left} className={styles.handle} style={{ background: '#5865f2' }} />
-      <div className={styles.header} style={{ background: '#5865f2' }}>
-        <span className={styles.label}>{label}</span>
-        <span className={styles.badge}>SOURCE</span>
+    <div className={styles.wrapper}>
+      {role === 'input' && <div className={styles.arrowAbove}>▼</div>}
+      <div className={`${styles.node} ${role ? styles[role] : ''}`} style={{ borderColor: connected === false ? '#666' : '#5865f2', opacity: connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
+        <Handle type="target" position={Position.Top} className={styles.handle} style={{ background: '#5865f2' }} />
+        <div className={styles.header} style={{ background: connected === false ? '#444' : '#5865f2' }}>
+          <span className={styles.label}>{label}</span>
+          <span className={styles.badge}>SOURCE</span>
+        </div>
+        <ResultLine
+          result={result}
+          className={styles.result}
+          successClass={styles.success}
+          errorClass={styles.error}
+          runningClass={styles.running}
+          skippedClass={styles.skipped}
+        />
+        <Handle type="source" position={Position.Bottom} className={styles.handle} style={{ background: '#5865f2' }} />
       </div>
-      <div className={styles.body}>
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>endpoint</span>
-          <input
-            className={styles.fieldInput}
-            value={endpointValue}
-            readOnly={endpointIsRef}
-            onChange={e => onConfigChange?.('endpoint', e.target.value)}
-          />
-        </div>
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>method</span>
-          <input
-            className={styles.fieldInput}
-            value={config.method ?? 'GET'}
-            onChange={e => onConfigChange?.('method', e.target.value)}
-          />
-        </div>
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>params</span>
-          <input
-            className={styles.fieldInput}
-            value={paramsJson}
-            onChange={e => onConfigChange?.('params', e.target.value)}
-          />
-        </div>
-      </div>
-      <ResultLine result={result} />
-      <Handle type="source" position={Position.Right} className={styles.handle} style={{ background: '#5865f2' }} />
+      {role === 'output' && <div className={styles.arrowBelow}>▼</div>}
     </div>
   );
 }

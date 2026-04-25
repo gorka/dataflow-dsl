@@ -16,12 +16,12 @@ describe('generateDsl', () => {
       edges: [],
     };
     const code = generateDsl(registry);
-    expect(code).toContain('const users = source("users",');
+    expect(code).toContain('source("users",');
     expect(code).toContain('method: "POST"');
     expect(code).toContain('endpoint: "/api/users"');
   });
 
-  it('generates code for chained transforms (select)', () => {
+  it('generates code for a select transform', () => {
     const registry: NodeRegistry = {
       nodes: [
         { id: 'people', type: 'source', config: { endpoint: '/api/people' } },
@@ -30,8 +30,8 @@ describe('generateDsl', () => {
       edges: [{ source: 'people', target: 'slim', type: 'chain' }],
     };
     const code = generateDsl(registry);
-    expect(code).toContain('const people = source("people",');
-    expect(code).toContain('const slim = people.select(');
+    expect(code).toContain('source("people",');
+    expect(code).toContain('select("slim", "people",');
     expect(code).toContain('"name"');
     expect(code).toContain('"age"');
   });
@@ -49,11 +49,11 @@ describe('generateDsl', () => {
       edges: [{ source: 'person', target: 'order', type: 'ref' }],
     };
     const code = generateDsl(registry);
-    expect(code).toContain('const person = source("person",');
-    expect(code).toContain('endpoint: ref(person, "id")');
+    expect(code).toContain('source("person",');
+    expect(code).toContain('ref("person", "id")');
   });
 
-  it('generates code for join with as', () => {
+  it('generates code for join', () => {
     const registry: NodeRegistry = {
       nodes: [
         { id: 'person', type: 'source', config: { endpoint: '/api/people' } },
@@ -71,13 +71,13 @@ describe('generateDsl', () => {
       ],
     };
     const code = generateDsl(registry);
-    expect(code).toContain('const enriched = person.join(order,');
+    expect(code).toContain('join("enriched", "person", "order",');
     expect(code).toContain('as: "orders"');
   });
 
-  it('roundtrips through evaluateDsl for a select chain', () => {
-    const original = `const people = source("people", { endpoint: "/api/people" });
-const slim = people.select(["name", "age"]);`;
+  it('roundtrips through evaluateDsl for a select', () => {
+    const original = `source("people", { endpoint: "/api/people" });
+select("slim", "people", ["name", "age"]);`;
     const registry = evaluateDsl(original);
     const code = generateDsl(registry);
     const registry2 = evaluateDsl(code);
@@ -89,19 +89,30 @@ const slim = people.select(["name", "age"]);`;
 
 describe('addNodeToCode', () => {
   it('appends a source node', () => {
-    const existing = `const users = source("users", { endpoint: "/api/users" });`;
+    const existing = `source("users", { endpoint: "/api/users" });`;
     const newNode: GraphNode = {
       id: 'posts',
       type: 'source',
       config: { endpoint: '/api/posts' },
     };
     const result = addNodeToCode(existing, newNode);
-    expect(result).toContain('const users =');
-    expect(result).toContain('const posts = source("posts",');
+    expect(result).toContain('source("users",');
+    expect(result).toContain('source("posts",');
+  });
+
+  it('ignores unlinked transform node (no parentId)', () => {
+    const existing = `source("users", { endpoint: "/api/users" });`;
+    const newNode: GraphNode = {
+      id: 'filter_1',
+      type: 'filter',
+      config: { expression: '' },
+    };
+    const result = addNodeToCode(existing, newNode);
+    expect(result).toBe(existing);
   });
 
   it('appends a transform connected to parent', () => {
-    const existing = `const users = source("users", { endpoint: "/api/users" });`;
+    const existing = `source("users", { endpoint: "/api/users" });`;
     const newNode: GraphNode = {
       id: 'slim',
       type: 'select',
@@ -109,25 +120,25 @@ describe('addNodeToCode', () => {
       parentId: 'users',
     };
     const result = addNodeToCode(existing, newNode);
-    expect(result).toContain('const slim = users.select(');
+    expect(result).toContain('select("slim", "users",');
     expect(result).toContain('"name"');
     expect(result).toContain('"email"');
   });
 });
 
 describe('removeNodeFromCode', () => {
-  it('removes a node declaration', () => {
-    const code = `const users = source("users", { endpoint: "/api/users" });
-const slim = users.select(["name", "age"]);`;
+  it('removes a node by name', () => {
+    const code = `source("users", { endpoint: "/api/users" });
+select("slim", "users", ["name", "age"]);`;
     const result = removeNodeFromCode(code, 'users');
-    expect(result).not.toContain('const users');
-    expect(result).toContain('const slim');
+    expect(result).not.toContain('source("users"');
+    expect(result).toContain('select("slim"');
   });
 });
 
 describe('updateNodeConfigInCode', () => {
   it('updates a source endpoint', () => {
-    const code = `const users = source("users", { endpoint: "/api/users" });`;
+    const code = `source("users", { endpoint: "/api/users" });`;
     const result = updateNodeConfigInCode(code, 'users', 'endpoint', '"/api/v2/users"');
     expect(result).toContain('/api/v2/users');
     expect(result).not.toContain('/api/users"');

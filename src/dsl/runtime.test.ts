@@ -4,7 +4,7 @@ import { evaluateDsl } from './runtime';
 describe('evaluateDsl', () => {
   it('registers a source node with config', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
+      source("person", { endpoint: "/api/people" });
     `);
     expect(registry.nodes).toHaveLength(1);
     expect(registry.nodes[0]).toEqual({
@@ -15,10 +15,10 @@ describe('evaluateDsl', () => {
     expect(registry.edges).toHaveLength(0);
   });
 
-  it('registers chained transform nodes with edges', () => {
+  it('registers a select transform with edge', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const slim = person.select(["name", "age"]);
+      source("person", { endpoint: "/api/people" });
+      select("slim", "person", ["name", "age"]);
     `);
     expect(registry.nodes).toHaveLength(2);
     expect(registry.nodes[1]).toMatchObject({
@@ -36,8 +36,8 @@ describe('evaluateDsl', () => {
 
   it('registers ref() as a ref edge', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const order = source("order", { endpoint: ref(person, "id") });
+      source("person", { endpoint: "/api/people" });
+      source("order", { endpoint: ref("person", "id") });
     `);
     expect(registry.nodes).toHaveLength(2);
     expect(registry.edges).toContainEqual({
@@ -55,8 +55,8 @@ describe('evaluateDsl', () => {
 
   it('registers filter nodes', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const adults = person.filter("age >= 18");
+      source("person", { endpoint: "/api/people" });
+      filter("adults", "person", "age >= 18");
     `);
     expect(registry.nodes).toHaveLength(2);
     expect(registry.nodes[1]).toMatchObject({
@@ -74,8 +74,8 @@ describe('evaluateDsl', () => {
 
   it('registers map nodes', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const renamed = person.map({ fullName: "name", years: "age" });
+      source("person", { endpoint: "/api/people" });
+      map("renamed", "person", { fullName: "name", years: "age" });
     `);
     expect(registry.nodes[1]).toMatchObject({
       id: 'renamed',
@@ -87,9 +87,9 @@ describe('evaluateDsl', () => {
 
   it('registers join nodes with as', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const order = source("order", { endpoint: "/api/orders" });
-      const enriched = person.join(order, { as: "orders" });
+      source("person", { endpoint: "/api/people" });
+      source("order", { endpoint: "/api/orders" });
+      join("enriched", "person", "order", { as: "orders" });
     `);
     expect(registry.nodes).toHaveLength(3);
     const joinNode = registry.nodes.find((n) => n.type === 'join')!;
@@ -113,9 +113,9 @@ describe('evaluateDsl', () => {
 
   it('registers join nodes with on', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const order = source("order", { endpoint: "/api/orders" });
-      const enriched = person.join(order, { on: ["id", "person_id"] });
+      source("person", { endpoint: "/api/people" });
+      source("order", { endpoint: "/api/orders" });
+      join("enriched", "person", "order", { on: ["id", "person_id"] });
     `);
     const joinNode = registry.nodes.find((n) => n.type === 'join')!;
     expect(joinNode).toMatchObject({
@@ -125,39 +125,39 @@ describe('evaluateDsl', () => {
 
   it('handles chained transforms', () => {
     const registry = evaluateDsl(`
-      const person = source("person", { endpoint: "/api/people" });
-      const result = person.select(["name", "age"]).filter("age >= 18");
+      source("person", { endpoint: "/api/people" });
+      select("slim", "person", ["name", "age"]);
+      filter("adults", "slim", "age >= 18");
     `);
     expect(registry.nodes).toHaveLength(3);
-
-    const selectNode = registry.nodes.find((n) => n.type === 'select')!;
-    const filterNode = registry.nodes.find((n) => n.type === 'filter')!;
-
-    expect(selectNode).toMatchObject({
+    expect(registry.nodes[1]).toMatchObject({
+      id: 'slim',
       type: 'select',
       config: { fields: ['name', 'age'] },
       parentId: 'person',
     });
-    expect(filterNode).toMatchObject({
-      id: 'result',
+    expect(registry.nodes[2]).toMatchObject({
+      id: 'adults',
       type: 'filter',
       config: { expression: 'age >= 18' },
-      parentId: selectNode.id,
+      parentId: 'slim',
     });
-
-    expect(registry.edges).toContainEqual({
-      source: 'person',
-      target: selectNode.id,
-      type: 'chain',
-    });
-    expect(registry.edges).toContainEqual({
-      source: selectNode.id,
-      target: 'result',
-      type: 'chain',
-    });
+    expect(registry.edges).toContainEqual({ source: 'person', target: 'slim', type: 'chain' });
+    expect(registry.edges).toContainEqual({ source: 'slim', target: 'adults', type: 'chain' });
   });
 
-  it('throws on syntax errors', () => {
-    expect(() => evaluateDsl('const x = ;;')).toThrow();
+  it('returns error on syntax errors', () => {
+    const registry = evaluateDsl('source(;;');
+    expect(registry.error).toBeDefined();
+  });
+
+  it('returns partial results when code has a runtime error', () => {
+    const registry = evaluateDsl(`
+      source("person", { endpoint: "/api/people" });
+      undefined.filter("x");
+    `);
+    expect(registry.nodes).toHaveLength(1);
+    expect(registry.nodes[0].id).toBe('person');
+    expect(registry.error).toBeDefined();
   });
 });

@@ -1,5 +1,9 @@
+.wrapper {
+  position: relative;
+}
+
 .node {
-  min-width: 200px;
+  min-width: 140px;
   background: #2d2d4a;
   border: 1px solid;
   border-radius: 6px;
@@ -27,42 +31,34 @@
   letter-spacing: 0.05em;
 }
 
-.body {
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.arrowAbove {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  color: #00e5ff;
+  filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.5));
+  pointer-events: none;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.arrowBelow {
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  color: #ffb74d;
+  filter: drop-shadow(0 0 4px rgba(255, 183, 77, 0.5));
+  pointer-events: none;
 }
 
-.fieldLabel {
-  font-size: 10px;
-  color: #888;
-  text-transform: lowercase;
+.node.input {
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.3), 0 0 12px rgba(0, 229, 255, 0.15);
 }
 
-.fieldValue {
-  color: #93c5fd;
-  font-family: monospace;
-  font-size: 12px;
-  word-break: break-all;
-}
-
-.fieldInput {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid #3a3a5a;
-  color: #93c5fd;
-  font-family: monospace;
-  font-size: 12px;
-  padding: 2px 0;
-  width: 100%;
-  outline: none;
+.node.output {
+  box-shadow: 0 0 0 1px rgba(255, 183, 77, 0.3), 0 0 12px rgba(255, 183, 77, 0.15);
 }
 
 .result {
@@ -84,8 +80,16 @@
   color: #faa61a;
 }
 
+.skipped {
+  color: #666;
+}
+
 .handle {
   width: 8px;
   height: 8px;
   border: none;
+}
+
+:global(.react-flow__node.selected) .node {
+  box-shadow: 0 0 0 2px #00e5ff, 0 0 16px rgba(0, 229, 255, 0.6);
 }

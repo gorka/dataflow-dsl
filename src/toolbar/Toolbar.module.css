@@ -49,6 +49,21 @@
   cursor: not-allowed;
 }
 
+.exampleSelect {
+  padding: 6px 8px;
+  background: #2d2d4a;
+  border: 1px solid #3a3a50;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.exampleSelect:hover {
+  background: #3a3a55;
+}
+
 .title {
   font-size: 14px;
   font-weight: 600;
