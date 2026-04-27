@@ -12,7 +12,7 @@ export interface TransformNodeData {
   unlinked?: boolean;
   onConfigChange?: (key: string, value: string) => void;
   nodeIds?: string[];
-  role?: 'input' | 'output';
+  role?: 'input' | 'output' | 'both';
   connected?: boolean;
 }
 
@@ -29,7 +29,7 @@ export function TransformNode(props: NodeProps) {
 
   return (
     <div className={styles.wrapper}>
-      {(role === 'input' || role === 'both') && <div className={styles.arrowAbove}>▼</div>}
+      {(role === 'input' || role === 'both') && <div className={styles.arrowAbove} title="Pipeline input">▼</div>}
       <div className={`${styles.node} ${role === 'both' ? `${styles.input} ${styles.output}` : role ? styles[role] : ''}`} style={{ borderColor: unlinked || connected === false ? '#666' : color, opacity: unlinked || connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
         <Handle type="target" position={Position.Top} className={styles.handle} style={{ background: color }} />
         <div className={styles.header} style={{ background: unlinked || connected === false ? '#444' : color }}>
@@ -47,7 +47,7 @@ export function TransformNode(props: NodeProps) {
         />
         <Handle type="source" position={Position.Bottom} className={styles.handle} style={{ background: color }} />
       </div>
-      {(role === 'output' || role === 'both') && <div className={styles.arrowBelow}>▼</div>}
+      {(role === 'output' || role === 'both') && <div className={styles.arrowBelow} title="Pipeline output">▼</div>}
     </div>
   );
 }
