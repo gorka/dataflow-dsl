@@ -23,7 +23,8 @@ export function AutocompleteInput({
 }: AutocompleteInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
-  const showSuggestions = isFocused && suggestions && suggestions.length > 0;
+  const exactMatch = suggestions?.length === 1 && suggestionPrefix + suggestions[0] === value;
+  const showSuggestions = isFocused && suggestions && suggestions.length > 0 && !exactMatch;
   const inputError = isInvalid || !!error;
 
   return (

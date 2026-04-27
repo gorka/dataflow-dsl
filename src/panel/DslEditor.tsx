@@ -221,7 +221,10 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippe
     [selectedNodeId, onNodeSelect, nodeIds, results],
   );
 
-  const snippetExtensions = useMemo(() => [javascript()], []);
+  const snippetExtensions = useMemo(
+    () => [javascript(), createDslCompletion(nodeIds, results)],
+    [nodeIds, results],
+  );
 
   if (snippetNodeId) {
     const snippet = extractNodeSnippet(code, snippetNodeId);

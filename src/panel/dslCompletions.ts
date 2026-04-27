@@ -37,6 +37,20 @@ const DSL_FUNCTIONS = [
 
 const PARENT_ARG_FUNCS = new Set(['filter', 'map', 'select']);
 
+const CONFIG_KEYS: Record<string, { label: string; detail: string }[]> = {
+  source: [
+    { label: 'endpoint', detail: 'string — URL template' },
+    { label: 'method', detail: '"GET" | "POST"' },
+    { label: 'params', detail: '{ key: value }' },
+    { label: 'query', detail: '{ key: value }' },
+    { label: 'body', detail: '{ key: value }' },
+  ],
+  join: [
+    { label: 'as', detail: 'string — nest joined data under this key' },
+    { label: 'on', detail: '["localField", "remoteField"]' },
+  ],
+};
+
 function collectPaths(obj: unknown, prefix: string, maxDepth: number): string[] {
   if (maxDepth <= 0 || obj == null || typeof obj !== 'object') return [];
   const paths: string[] = [];
@@ -106,6 +120,30 @@ function parseCallContext(text: string, pos: number): CallContext | null {
   return { func: funcMatch[1], argIndex, args };
 }
 
+function findObjectContext(doc: string, pos: number): { func: string; wordFrom: number } | null {
+  let depth = 0;
+  let braceStart = -1;
+
+  for (let i = pos - 1; i >= 0; i--) {
+    const ch = doc[i];
+    if (ch === '}' || ch === ')' || ch === ']') depth++;
+    else if (ch === '{') {
+      if (depth > 0) { depth--; continue; }
+      braceStart = i;
+      break;
+    } else if ((ch === '(' || ch === '[') && depth === 0) return null;
+  }
+  if (braceStart < 0) return null;
+
+  const callCtx = parseCallContext(doc, braceStart);
+  if (!callCtx) return null;
+
+  const word = /\w*$/.exec(doc.slice(0, pos));
+  const wordFrom = word ? pos - word[0].length : pos;
+
+  return { func: callCtx.func, wordFrom };
+}
+
 function dslCompletionSource(
   nodeIds: string[],
   results: Map<string, ExecutionResult>,
@@ -152,6 +190,19 @@ function dslCompletionSource(
       }
 
       return null;
+    }
+
+    const objCtx = findObjectContext(doc, pos);
+    if (objCtx && CONFIG_KEYS[objCtx.func]) {
+      return {
+        from: objCtx.wordFrom,
+        options: CONFIG_KEYS[objCtx.func].map(k => ({
+          label: k.label,
+          detail: k.detail,
+          type: 'property',
+          apply: k.label + ': ',
+        })),
+      };
     }
 
     const word = ctx.matchBefore(/\w+/);
