@@ -126,10 +126,14 @@
   box-sizing: border-box;
 }
 
+.fieldRowGroup {
+  display: flex;
+  flex-direction: column;
+}
+
 .fieldRow {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: stretch;
 }
 
 .fieldRowInput {
@@ -137,6 +141,41 @@
   width: auto;
   flex: 1;
   min-width: 0;
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+}
+
+.fieldRowBtn {
+  all: unset;
+  font-size: 12px;
+  font-family: monospace;
+  color: #666;
+  background: #1e1e2a;
+  padding: 0 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid #3a3a5a;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  box-sizing: border-box;
+}
+
+.fieldRowBtn:hover {
+  color: #aaa;
+  background: #2a2a3a;
+}
+
+.fieldRowBtnRemove {
+  composes: fieldRowBtn;
+}
+
+.fieldRowBtnRemove:hover {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.15);
 }
 
 .removeBtn {
@@ -170,7 +209,8 @@
   flex-direction: column;
   background: #16162a;
   border: 1px solid #3a3a5a;
-  border-radius: 4px;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
   padding: 2px 0;
   max-height: 160px;
   overflow-y: auto;
