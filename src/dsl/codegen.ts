@@ -148,6 +148,27 @@ export function removeNodeFromCode(code: string, nodeId: string): string {
   return generate(ast as Parameters<typeof generate>[0]);
 }
 
+export function renameNodeInCode(code: string, oldId: string, newId: string): string {
+  const ast = acorn.parse(code, { ecmaVersion: 2020, sourceType: 'script' });
+
+  type AstNode = { type: string; value?: unknown; arguments?: AstNode[]; callee?: AstNode; name?: string; properties?: Array<{ value: AstNode }> };
+
+  function walkLiterals(node: AstNode) {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'Literal' && node.value === oldId) {
+      node.value = newId;
+      (node as Record<string, unknown>).raw = JSON.stringify(newId);
+    }
+    for (const val of Object.values(node)) {
+      if (Array.isArray(val)) val.forEach(v => walkLiterals(v as AstNode));
+      else if (val && typeof val === 'object') walkLiterals(val as AstNode);
+    }
+  }
+
+  walkLiterals(ast as unknown as AstNode);
+  return generate(ast as Parameters<typeof generate>[0]);
+}
+
 export function updateNodeConfigInCode(
   code: string,
   nodeId: string,

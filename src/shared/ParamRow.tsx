@@ -23,11 +23,12 @@ export function extractPlaceholders(endpoint: string): string[] {
   return [...matches].map(m => m[1]);
 }
 
-export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
+export function ParamRow({ paramKey, value, nodeIds, onCommit, onRemove, styles }: {
   paramKey: string;
   value: unknown;
   nodeIds: string[];
   onCommit: (serialized: string) => void;
+  onRemove?: () => void;
   styles: Record<string, string>;
 }) {
   const startAsRef = isRefValue(value);
@@ -83,15 +84,15 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
       </button>
       {mode === 'val' ? (
         <input
-          className={styles.fieldInput}
+          className={onRemove ? styles.fieldInputConnected : styles.fieldInput}
           value={valDisplay}
           placeholder="value"
           onChange={e => onCommit(serializeLiteral(e.target.value))}
         />
       ) : (
-        <div className={styles.refInputs}>
+        <div className={onRemove ? styles.refInputsConnected : styles.refInputs}>
           <select
-            className={styles.refSelect}
+            className={onRemove ? styles.refSelectConnected : styles.refSelect}
             value={refNode}
             onChange={e => handleNodeSelect(e.target.value)}
           >
@@ -101,12 +102,15 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
             ))}
           </select>
           <input
-            className={styles.refInput}
+            className={onRemove ? styles.refInputConnected : styles.refInput}
             value={refField}
             placeholder="field"
             onChange={e => handleFieldChange(e.target.value)}
           />
         </div>
+      )}
+      {onRemove && (
+        <button type="button" className={`${styles.fieldRowBtn} ${styles.fieldRowBtnRemove}`} onClick={onRemove}>x</button>
       )}
     </div>
   );

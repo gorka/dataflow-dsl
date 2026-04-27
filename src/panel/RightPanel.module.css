@@ -5,35 +5,6 @@
   background: #1a1a2e;
 }
 
-.tabs {
-  display: flex;
-  border-bottom: 1px solid #2a2a35;
-  flex-shrink: 0;
-}
-
-.tab {
-  flex: 1;
-  padding: 8px;
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 12px;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: color 0.15s, border-color 0.15s;
-  border-bottom: 2px solid transparent;
-}
-
-.tab:hover {
-  color: #ccc;
-}
-
-.active {
-  color: #e0e0e0;
-  border-bottom-color: #5865f2;
-}
-
 .content {
   flex: 1;
   display: flex;
@@ -51,11 +22,27 @@
   flex-shrink: 0;
 }
 
-.nodeName {
+.nodeNameInput {
   font-size: 14px;
   font-weight: 600;
   color: #e0e0e0;
   font-family: monospace;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  outline: none;
+  min-width: 0;
+  flex: 1;
+}
+
+.nodeNameInput:hover {
+  border-color: #3a3a45;
+}
+
+.nodeNameInput:focus {
+  border-color: #5865f2;
+  background: #13131a;
 }
 
 .typeBadge {
@@ -68,16 +55,25 @@
   color: #fff;
 }
 
-.configTab {
+.splitContainer {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
 }
 
-.configFields {
-  overflow-y: auto;
-  flex-shrink: 0;
+.topPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.bottomPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .splitDivider {
@@ -91,9 +87,60 @@
   background: #5865f2;
 }
 
-.dslSection {
-  min-height: 0;
+.bottomPaneHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #13131a;
+  border-bottom: 1px solid #2a2a35;
+  flex-shrink: 0;
+}
+
+.bottomPaneLabel {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.closeBtn {
+  all: unset;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: #e0e0e0;
+}
+
+.tabContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.configContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.inputView {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.inputView > div {
+  background: transparent !important;
 }
 
 .errorBar {

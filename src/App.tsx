@@ -10,12 +10,12 @@ import { useGraphFromDsl, registryToFlow } from './graph/useGraphFromDsl';
 import { useDslFromGraph } from './graph/useDslFromGraph';
 import { useKeyboardHandler } from './graph/useKeyboardHandler';
 import { evaluateDsl } from './dsl/runtime';
-import { executePipeline, findConnectedNodes } from './dsl/execute';
-import { removeNodeFromCode } from './dsl/codegen';
+import { executePipeline, findConnectedNodes, executeTransform, topologicalSort } from './dsl/execute';
+import { removeNodeFromCode, renameNodeInCode } from './dsl/codegen';
 import { AppProvider } from './state/AppProvider';
 import { useAppState, useAppDispatch } from './state/useAppState';
 import { ErrorBoundary } from './ErrorBoundary';
-import type { NodeType, GraphNode } from './types';
+import type { NodeType, GraphNode, GraphEdge } from './types';
 import styles from './App.module.css';
 
 function AppInner() {
@@ -45,6 +45,48 @@ function AppInner() {
   }, [state.results, dispatch]);
 
   useKeyboardHandler(state, { dispatch, setCodeWithHistory, updateConfig });
+
+  const prevCodeRef = useRef(state.code);
+  const resultsRef = useRef(state.results);
+  resultsRef.current = state.results;
+
+  useEffect(() => {
+    if (prevCodeRef.current === state.code) {
+      prevCodeRef.current = state.code;
+      return;
+    }
+    prevCodeRef.current = state.code;
+
+    const currentResults = resultsRef.current;
+    if (currentResults.size === 0 || state.isRunning) return;
+
+    const reg = evaluateDsl(state.code);
+    if (reg.error || reg.nodes.length === 0) return;
+
+    const nodeMap = new Map(reg.nodes.map(n => [n.id, n]));
+    const order = topologicalSort(reg);
+    const liveResults = new Map(currentResults);
+    let changed = false;
+
+    for (const id of order) {
+      const node = nodeMap.get(id)!;
+      if (node.type === 'source') continue;
+
+      const parentData = liveResults.get(node.parentId!)?.data;
+      if (!parentData) continue;
+
+      try {
+        const data = executeTransform(node, parentData, liveResults);
+        liveResults.set(id, { nodeId: id, status: 'success', data, durationMs: 0, preview: true });
+        changed = true;
+      } catch (err) {
+        liveResults.set(id, { nodeId: id, status: 'error', error: err instanceof Error ? err.message : String(err), preview: true });
+        changed = true;
+      }
+    }
+
+    if (changed) dispatch({ type: 'RUN_COMPLETE', results: liveResults });
+  }, [state.code, state.isRunning, dispatch]);
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; });
@@ -186,8 +228,10 @@ function AppInner() {
   let selectedNodeConfig: GraphNode['config'] | undefined;
   let selectedParentId: string | undefined;
   let registryNodeIds: string[] = [];
+  let registryEdges: GraphEdge[] = [];
   const registry = evaluateDsl(state.code);
   registryNodeIds = registry.nodes.map(n => n.id);
+  registryEdges = registry.edges;
   if (state.selectedNodeId) {
     const found = registry.nodes.find(n => n.id === state.selectedNodeId);
     if (found) {
@@ -228,6 +272,11 @@ function AppInner() {
     if (state.selectedNodeId) updateConfig(state.selectedNodeId, key, value);
   }, [state.selectedNodeId, updateConfig]);
 
+  const handleNodeRename = useCallback((oldId: string, newId: string) => {
+    setCodeWithHistory(prev => renameNodeInCode(prev, oldId, newId));
+    dispatch({ type: 'SELECT_NODE', id: newId });
+  }, [setCodeWithHistory, dispatch]);
+
   return (
     <div className={styles.layout}>
       <Toolbar
@@ -267,8 +316,11 @@ function AppInner() {
             selectedNodeType={selectedNodeType}
             selectedNodeConfig={selectedNodeConfig}
             onConfigChange={handleConfigChange}
+            onNodeRename={handleNodeRename}
             nodeIds={registryNodeIds}
+            registryEdges={registryEdges}
             parentFields={parentFields}
+            selectedParentId={selectedParentId}
           />
         </div>
       </div>

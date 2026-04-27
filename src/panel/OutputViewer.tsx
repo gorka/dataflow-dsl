@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { JsonView, darkStyles } from 'react-json-view-lite';
+import 'react-json-view-lite/dist/index.css';
 import { evaluateDsl } from '../dsl/runtime';
 import type { ExecutionResult } from '../types';
 import styles from './OutputViewer.module.css';
+
+const shouldExpandNode = (level: number) => level < 2;
 
 type ViewMode = 'output' | 'response';
 
@@ -61,6 +65,9 @@ export function OutputViewer({ selectedNodeId, results, code }: OutputViewerProp
           {itemCount} items · {Math.round(result.durationMs ?? 0)}ms
         </span>
       </div>
+      {result.preview && (
+        <div className={styles.previewBanner}>Preview using cached data — Run to fetch fresh results</div>
+      )}
       {showToggle && (
         <div className={styles.toggleBar}>
           <button
@@ -77,7 +84,9 @@ export function OutputViewer({ selectedNodeId, results, code }: OutputViewerProp
           </button>
         </div>
       )}
-      <pre className={styles.json}>{JSON.stringify(displayData, null, 2)}</pre>
+      <div className={styles.json}>
+        <JsonView data={displayData ?? {}} shouldExpandNode={shouldExpandNode} style={darkStyles} clickToExpandNode />
+      </div>
     </div>
   );
 }

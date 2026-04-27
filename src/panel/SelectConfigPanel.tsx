@@ -82,6 +82,9 @@ export function SelectConfigPanel({ config, onConfigChange, parentFields }: Sele
         {...autocompleteProps(newField)}
         styles={styles}
       />
+      {!hasParent && (
+        <span className={styles.hintText}>run the pipeline to enable field autocomplete</span>
+      )}
     </div>
   );
 }

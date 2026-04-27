@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateDsl } from './runtime';
+import { evaluateDsl, detectCycle } from './runtime';
 
 describe('evaluateDsl', () => {
   it('registers a source node with config', () => {
@@ -196,5 +196,43 @@ describe('evaluateDsl', () => {
     const registry = evaluateDsl(`join("j1", "", "", { as: "data" });`);
     expect(registry.error).toBeUndefined();
     expect(registry.nodes[0]).toMatchObject({ id: 'j1', type: 'join' });
+  });
+});
+
+describe('detectCycle', () => {
+  it('detects a simple A↔B cycle via ref', () => {
+    const registry = evaluateDsl(`
+      source("a", { endpoint: "/a", params: { x: ref("b", "id") } });
+      source("b", { endpoint: "/b", params: { y: ref("a", "id") } });
+    `);
+    expect(registry.error).toMatch(/Circular dependency/);
+  });
+
+  it('detects a longer A→B→C→A cycle', () => {
+    const edges = [
+      { source: 'a', target: 'b', type: 'chain' as const },
+      { source: 'b', target: 'c', type: 'chain' as const },
+      { source: 'c', target: 'a', type: 'ref' as const },
+    ];
+    const cycle = detectCycle(edges);
+    expect(cycle).not.toBeNull();
+    expect(cycle!.length).toBeGreaterThanOrEqual(3);
+    expect(cycle![0]).toBe(cycle![cycle!.length - 1]);
+  });
+
+  it('returns null for a valid acyclic graph', () => {
+    const registry = evaluateDsl(`
+      source("a", { endpoint: "/a" });
+      source("b", { endpoint: "/b", params: { x: ref("a", "id") } });
+    `);
+    expect(registry.error).toBeUndefined();
+    expect(detectCycle(registry.edges)).toBeNull();
+  });
+
+  it('detects a self-referencing node', () => {
+    const registry = evaluateDsl(`
+      source("a", { endpoint: "/a", params: { x: ref("a", "id") } });
+    `);
+    expect(registry.error).toMatch(/Circular dependency/);
   });
 });

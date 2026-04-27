@@ -1,6 +1,6 @@
 import { autocompletion, snippet, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
-import type { ExecutionResult } from '../types';
+import type { ExecutionResult, GraphEdge } from '../types';
 
 const DSL_FUNCTIONS = [
   {
@@ -144,9 +144,47 @@ function findObjectContext(doc: string, pos: number): { func: string; wordFrom: 
   return { func: callCtx.func, wordFrom };
 }
 
+function findEnclosingSourceNode(text: string, pos: number): string | null {
+  const sourceRe = /source\s*\(\s*"([^"]+)"/g;
+  let best: { name: string; start: number } | null = null;
+  let match;
+  while ((match = sourceRe.exec(text)) !== null) {
+    if (match.index > pos) break;
+    let depth = 0;
+    let end = text.length;
+    for (let i = match.index; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '(' || ch === '{' || ch === '[') depth++;
+      else if (ch === ')' || ch === '}' || ch === ']') depth--;
+      if (depth <= 0) { end = i; break; }
+    }
+    if (pos >= match.index && pos <= end) {
+      best = { name: match[1], start: match.index };
+    }
+  }
+  return best?.name ?? null;
+}
+
+function getDescendants(nodeId: string, edges: GraphEdge[]): Set<string> {
+  const visited = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    for (const e of edges) {
+      if (e.source === current && !visited.has(e.target)) {
+        queue.push(e.target);
+      }
+    }
+  }
+  return visited;
+}
+
 function dslCompletionSource(
   nodeIds: string[],
   results: Map<string, ExecutionResult>,
+  edges: GraphEdge[],
 ) {
   return (ctx: CompletionContext): CompletionResult | null => {
     const { state, pos } = ctx;
@@ -158,9 +196,12 @@ function dslCompletionSource(
       if (!callCtx) return null;
 
       if (callCtx.func === 'ref' && callCtx.argIndex === 0) {
+        const enclosing = findEnclosingSourceNode(doc, pos);
+        const excluded = enclosing ? getDescendants(enclosing, edges) : new Set<string>();
+        const available = nodeIds.filter(id => !excluded.has(id));
         return {
           from: strCtx.start,
-          options: nodeIds.map(id => ({ label: id, type: 'variable' })),
+          options: available.map(id => ({ label: id, type: 'variable' })),
         };
       }
 
@@ -218,9 +259,10 @@ function dslCompletionSource(
 export function createDslCompletion(
   nodeIds: string[],
   results: Map<string, ExecutionResult>,
+  edges: GraphEdge[] = [],
 ): Extension {
   return autocompletion({
-    override: [dslCompletionSource(nodeIds, results)],
+    override: [dslCompletionSource(nodeIds, results, edges)],
     activateOnTyping: true,
   });
 }

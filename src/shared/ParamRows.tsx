@@ -24,6 +24,18 @@ export function ParamRows({ endpoint, config, nodeIds, currentNodeId, onConfigCh
     onConfigChange?.('params', `{ ${entries.join(', ')} }`);
   };
 
+  const handleRemove = (paramKey: string) => {
+    const remaining = allKeys.filter(k => k !== paramKey);
+    if (remaining.length === 0) {
+      onConfigChange?.('params', '{}');
+      return;
+    }
+    const entries = remaining.map(k => `${k}: ${serializeParamValue(params[k])}`);
+    onConfigChange?.('params', `{ ${entries.join(', ')} }`);
+  };
+
+  const placeholderSet = new Set(placeholders);
+
   const handleAddParam = () => {
     const key = newKey.trim();
     if (!key) { setError('enter a param name'); return; }
@@ -48,25 +60,28 @@ export function ParamRows({ endpoint, config, nodeIds, currentNodeId, onConfigCh
           value={params[k]}
           nodeIds={currentNodeId ? nodeIds.filter(id => id !== currentNodeId) : nodeIds}
           onCommit={serialized => handleCommit(k, serialized)}
+          onRemove={!placeholderSet.has(k) ? () => handleRemove(k) : undefined}
           styles={styles}
         />
       ))}
       {onConfigChange && (
-        <div className={styles.paramRow}>
-          <input
-            className={`${styles.fieldInput} ${error ? styles.fieldInputError : ''}`}
-            value={newKey}
-            placeholder="new param name"
-            onChange={e => { setNewKey(e.target.value); setError(''); }}
-            onKeyDown={e => { if (e.key === 'Enter') handleAddParam(); }}
-          />
-          <button
-            type="button"
-            className={styles.modeToggle}
-            onClick={handleAddParam}
-          >
-            +
-          </button>
+        <div className={styles.fieldRowGroup}>
+          <div className={styles.fieldRow}>
+            <input
+              className={`${styles.fieldRowInput} ${error ? styles.fieldInputError : ''}`}
+              value={newKey}
+              placeholder="new param name"
+              onChange={e => { setNewKey(e.target.value); setError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddParam(); }}
+            />
+            <button
+              type="button"
+              className={styles.fieldRowBtn}
+              onClick={handleAddParam}
+            >
+              +
+            </button>
+          </div>
           {error && <span className={styles.errorText}>{error}</span>}
         </div>
       )}

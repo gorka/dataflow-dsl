@@ -62,4 +62,5 @@ export interface ExecutionResult {
   rawResponse?: unknown;
   error?: string;
   durationMs?: number;
+  preview?: boolean;
 }

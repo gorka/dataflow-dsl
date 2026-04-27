@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { SourceConfig } from '../types';
 import { BlurInput } from '../shared/BlurInput';
@@ -16,9 +16,12 @@ interface SourceConfigPanelProps {
 export function SourceConfigPanel({ config, onConfigChange, nodeIds, currentNodeId }: SourceConfigPanelProps) {
   const endpoint = config.endpoint ?? '';
 
+  const onConfigChangeRef = useRef(onConfigChange);
+  useEffect(() => { onConfigChangeRef.current = onConfigChange; });
+
   const paramKeys = config.params ? Object.keys(config.params).sort().join(',') : '';
   useEffect(() => {
-    syncParams(endpoint, config, onConfigChange);
+    syncParams(endpoint, config, onConfigChangeRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint, paramKeys]);
 
@@ -48,23 +51,10 @@ export function SourceConfigPanel({ config, onConfigChange, nodeIds, currentNode
 function syncParams(endpoint: string, config: SourceConfig, onConfigChange: (key: string, value: string) => void) {
   const placeholders = extractPlaceholders(endpoint);
   const existing = config.params ?? {};
-  const placeholderSet = new Set(placeholders);
-
-  const stale = Object.keys(existing).filter(k =>
-    !placeholderSet.has(k) && (existing[k] === '' || existing[k] === undefined)
-  );
   const missing = placeholders.filter(k => !(k in existing));
+  if (missing.length === 0) return;
 
-  if (missing.length === 0 && stale.length === 0) return;
-
-  const staleSet = new Set(stale);
-  const kept = Object.keys(existing).filter(k => !staleSet.has(k));
-  const allKeys = [...new Set([...kept, ...placeholders])];
-
-  if (allKeys.length === 0) {
-    onConfigChange('params', '{}');
-    return;
-  }
+  const allKeys = [...new Set([...Object.keys(existing), ...placeholders])];
   const entries = allKeys.map(k => `${k}: ${serializeParamValue(existing[k])}`);
   onConfigChange('params', `{ ${entries.join(', ')} }`);
 }

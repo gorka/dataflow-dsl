@@ -180,7 +180,7 @@ async function executeSource(node: GraphNode, results: Map<string, ExecutionResu
   };
 }
 
-function executeTransform(
+export function executeTransform(
   node: GraphNode,
   parentData: Collection,
   results: Map<string, ExecutionResult>,
@@ -296,7 +296,7 @@ export function findConnectedNodes(registry: NodeRegistry): Set<string> {
   return connected;
 }
 
-function topologicalSort(registry: NodeRegistry): string[] {
+export function topologicalSort(registry: NodeRegistry): string[] {
   const nodeIds = new Set(registry.nodes.map((n) => n.id));
   const inDegree = new Map<string, number>([...nodeIds].map((id) => [id, 0]));
   const adj = new Map<string, string[]>([...nodeIds].map((id) => [id, []]));

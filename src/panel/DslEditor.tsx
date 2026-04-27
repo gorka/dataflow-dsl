@@ -6,7 +6,7 @@ import { Decoration, ViewPlugin, EditorView, type DecorationSet, type ViewUpdate
 import { RangeSetBuilder, type Extension } from '@codemirror/state';
 import type { Text } from '@codemirror/state';
 import { createDslCompletion } from './dslCompletions';
-import type { ExecutionResult } from '../types';
+import type { ExecutionResult, GraphEdge } from '../types';
 import styles from './DslEditor.module.css';
 
 interface DslEditorProps {
@@ -17,6 +17,7 @@ interface DslEditorProps {
   snippetNodeId?: string;
   nodeIds?: string[];
   results?: Map<string, ExecutionResult>;
+  edges?: GraphEdge[];
 }
 
 const NODE_CALL_RE = /^(source|filter|map|select|join)\s*\(/;
@@ -196,7 +197,7 @@ function validateSnippet(text: string): string | null {
   return null;
 }
 
-export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId, nodeIds = [], results = new Map() }: DslEditorProps) {
+export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippetNodeId, nodeIds = [], results = new Map(), edges = [] }: DslEditorProps) {
   const lastCursorNodeRef = useRef<string | null>(null);
   const [snippetOverride, setSnippetOverride] = useState<string | null>(null);
   const [snippetError, setSnippetError] = useState<string | null>(null);
@@ -211,19 +212,19 @@ export function DslEditor({ code, onChange, selectedNodeId, onNodeSelect, snippe
       const exts: Extension[] = [
         javascript(),
         createDimExtension(selectedNodeId),
-        createDslCompletion(nodeIds, results),
+        createDslCompletion(nodeIds, results, edges),
       ];
       if (onNodeSelect) {
         exts.push(createCursorTrackExtension(onNodeSelect, lastCursorNodeRef));
       }
       return exts;
     },
-    [selectedNodeId, onNodeSelect, nodeIds, results],
+    [selectedNodeId, onNodeSelect, nodeIds, results, edges],
   );
 
   const snippetExtensions = useMemo(
-    () => [javascript(), createDslCompletion(nodeIds, results)],
-    [nodeIds, results],
+    () => [javascript(), createDslCompletion(nodeIds, results, edges)],
+    [nodeIds, results, edges],
   );
 
   if (snippetNodeId) {
