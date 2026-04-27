@@ -51,7 +51,7 @@ function FieldSuggestions({ parentFields, value, onSelect, onDrillDown }: {
           <button
             key={s}
             type="button"
-            className={isBranch ? styles.chipBranch : styles.chip}
+            className={isBranch ? styles.suggestionBranch : styles.suggestionItem}
             onMouseDown={e => {
               e.preventDefault();
               if (isBranch) {

@@ -167,29 +167,29 @@
 
 .suggestions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  background: #16162a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
   padding: 2px 0;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
-.chip {
+.suggestionItem {
   all: unset;
-  font-size: 11px;
+  font-size: 12px;
   font-family: monospace;
   color: #93c5fd;
-  background: #1e1e2e;
-  border: 1px solid #3a3a5a;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 4px 8px;
   cursor: pointer;
 }
 
-.chip:hover {
+.suggestionItem:hover {
   background: #2a2a4a;
-  border-color: #5865f2;
 }
 
-.chipBranch {
-  composes: chip;
+.suggestionBranch {
+  composes: suggestionItem;
   color: #c4a7e7;
 }
