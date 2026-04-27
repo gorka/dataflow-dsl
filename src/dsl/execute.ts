@@ -52,7 +52,24 @@ interface FetchResult {
   rawResponse: unknown;
 }
 
+function validateUrl(url: string): void {
+  if (!url || url.trim() === '') {
+    throw new Error('Endpoint URL is empty');
+  }
+  if (/\{(\w+)\}/.test(url)) {
+    const unresolved = url.match(/\{(\w+)\}/g)!.join(', ');
+    throw new Error(`Endpoint has unresolved placeholders: ${unresolved}`);
+  }
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
+
 async function fetchUrl(url: string, config: SourceConfig, retries = 2): Promise<FetchResult> {
+  validateUrl(url);
+
   const options: RequestInit = { method: config.method ?? 'GET' };
   if (config.body) {
     options.body = JSON.stringify(config.body);
@@ -61,16 +78,32 @@ async function fetchUrl(url: string, config: SourceConfig, retries = 2): Promise
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(url, options);
-      if (!response.ok && attempt < retries) {
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
-        continue;
+      if (!response.ok) {
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`HTTP ${response.status} ${response.statusText} from ${url}`);
       }
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('json')) {
+        const preview = (await response.text()).slice(0, 120);
+        throw new Error(`Expected JSON response but got ${contentType || 'unknown content type'}: ${preview}...`);
+      }
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`Response from ${url} is not valid JSON`);
+      }
       return { collection: normalizeResponse(data), rawResponse: data };
     } catch (err) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
-        continue;
+      if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('NetworkError'))) {
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`Network error: could not reach ${url}`);
       }
       throw err;
     }

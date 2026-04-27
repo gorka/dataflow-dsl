@@ -6,14 +6,23 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+const jsonHeaders = { get: (h: string) => h.toLowerCase() === 'content-type' ? 'application/json' : null };
+
+function jsonResponse(body: unknown, ok = true) {
+  return Promise.resolve({
+    ok,
+    status: ok ? 200 : 500,
+    statusText: ok ? 'OK' : 'Internal Server Error',
+    headers: jsonHeaders,
+    json: () => Promise.resolve(body),
+  } as unknown as Response);
+}
+
 function mockFetch(responses: Record<string, unknown>) {
   global.fetch = vi.fn((url: string | URL | Request) => {
     const key = typeof url === 'string' ? url : url.toString();
     const body = responses[key] ?? responses['*'];
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(body),
-    } as Response);
+    return jsonResponse(body);
   });
 }
 
@@ -111,8 +120,8 @@ describe('executePipeline', () => {
 
   it('executes enrichment join (as) — attaches right collection under key', async () => {
     global.fetch = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ id: 1, name: 'Alice' }]) } as Response)
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ id: 10, text: 'Order A' }]) } as Response);
+      .mockResolvedValueOnce(jsonResponse([{ id: 1, name: 'Alice' }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: 10, text: 'Order A' }]));
 
     const registry: NodeRegistry = {
       nodes: [
@@ -135,14 +144,8 @@ describe('executePipeline', () => {
 
   it('resolves ref() in params — single URL', async () => {
     global.fetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([{ id: 1, profileUrl: 'https://api.example.com/profiles/1' }]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([{ bio: 'Software engineer' }]),
-      } as Response);
+      .mockResolvedValueOnce(jsonResponse([{ id: 1, profileUrl: 'https://api.example.com/profiles/1' }]))
+      .mockResolvedValueOnce(jsonResponse([{ bio: 'Software engineer' }]));
 
     const registry: NodeRegistry = {
       nodes: [
@@ -166,21 +169,12 @@ describe('executePipeline', () => {
 
   it('resolves ref() in params — array of URLs (parallel fetch)', async () => {
     global.fetch = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([
-          { profileUrl: 'https://api.example.com/profiles/1' },
-          { profileUrl: 'https://api.example.com/profiles/2' },
-        ]),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ bio: 'Engineer' }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ bio: 'Designer' }),
-      } as Response);
+      .mockResolvedValueOnce(jsonResponse([
+        { profileUrl: 'https://api.example.com/profiles/1' },
+        { profileUrl: 'https://api.example.com/profiles/2' },
+      ]))
+      .mockResolvedValueOnce(jsonResponse({ bio: 'Engineer' }))
+      .mockResolvedValueOnce(jsonResponse({ bio: 'Designer' }));
 
     const registry: NodeRegistry = {
       nodes: [
@@ -203,7 +197,7 @@ describe('executePipeline', () => {
   });
 
   it('propagates errors and stops downstream nodes', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
 
     const registry: NodeRegistry = {
       nodes: [
@@ -217,6 +211,73 @@ describe('executePipeline', () => {
     expect(results.get('users')?.status).toBe('error');
     expect(results.get('adults')?.status).toBe('error');
     expect(results.get('adults')?.error).toBe('Upstream node failed');
+  });
+
+  it('reports empty endpoint clearly', async () => {
+    const registry: NodeRegistry = {
+      nodes: [{ id: 'api', type: 'source', config: { endpoint: '' } }],
+      edges: [],
+    };
+    const results = await executePipeline(registry);
+    expect(results.get('api')?.status).toBe('error');
+    expect(results.get('api')?.error).toContain('empty');
+  });
+
+  it('reports invalid URL clearly', async () => {
+    const registry: NodeRegistry = {
+      nodes: [{ id: 'api', type: 'source', config: { endpoint: 'not-a-url' } }],
+      edges: [],
+    };
+    const results = await executePipeline(registry);
+    expect(results.get('api')?.status).toBe('error');
+    expect(results.get('api')?.error).toContain('Invalid URL');
+  });
+
+  it('reports non-JSON response clearly', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: { get: (h: string) => h.toLowerCase() === 'content-type' ? 'text/html' : null },
+      text: () => Promise.resolve('<html><body>Not Found</body></html>'),
+    } as unknown as Response);
+
+    const registry: NodeRegistry = {
+      nodes: [{ id: 'api', type: 'source', config: { endpoint: 'https://example.com/api' } }],
+      edges: [],
+    };
+    const results = await executePipeline(registry);
+    expect(results.get('api')?.status).toBe('error');
+    expect(results.get('api')?.error).toContain('Expected JSON');
+    expect(results.get('api')?.error).toContain('text/html');
+  });
+
+  it('reports HTTP errors with status code', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      headers: jsonHeaders,
+    } as unknown as Response);
+
+    const registry: NodeRegistry = {
+      nodes: [{ id: 'api', type: 'source', config: { endpoint: 'https://api.example.com/missing' } }],
+      edges: [],
+    };
+    const results = await executePipeline(registry);
+    expect(results.get('api')?.status).toBe('error');
+    expect(results.get('api')?.error).toContain('404');
+  });
+
+  it('reports unresolved placeholders', async () => {
+    const registry: NodeRegistry = {
+      nodes: [{ id: 'api', type: 'source', config: { endpoint: 'https://api.example.com/{id}', params: {} } }],
+      edges: [],
+    };
+    const results = await executePipeline(registry);
+    expect(results.get('api')?.status).toBe('error');
+    expect(results.get('api')?.error).toContain('unresolved');
+    expect(results.get('api')?.error).toContain('{id}');
   });
 
   it('skips orphan nodes during execution', async () => {
