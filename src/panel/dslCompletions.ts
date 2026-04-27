@@ -6,7 +6,7 @@ const DSL_FUNCTIONS = [
   {
     label: 'source',
     detail: '(name, { endpoint, method?, params? })',
-    apply: snippet('source("${name}", {\n  endpoint: "${url}",\n  method: "GET",\n  params: { ${key}: ${value} }\n});\n'),
+    apply: snippet('source("${name}", {\n  endpoint: "${url}"\n});\n'),
   },
   {
     label: 'filter',

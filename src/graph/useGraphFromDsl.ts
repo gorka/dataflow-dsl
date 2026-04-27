@@ -69,7 +69,9 @@ export function registryToFlow(
     const configCb = onConfigChange
       ? (key: string, value: string) => onConfigChange(node.id, key, value)
       : undefined;
-    const role = node.id === inputId ? 'input' as const : node.id === outputId ? 'output' as const : undefined;
+    const isInput = node.id === inputId;
+    const isOutput = node.id === outputId;
+    const role = isInput && isOutput ? 'both' as const : isInput ? 'input' as const : isOutput ? 'output' as const : undefined;
     const isConnected = connected.has(node.id);
     return {
       id: node.id,

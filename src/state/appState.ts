@@ -12,6 +12,7 @@ export interface AppState {
   highlightedNodeId: string | null;
   results: Map<string, ExecutionResult>;
   isRunning: boolean;
+  pendingPositions: Map<string, { x: number; y: number }>;
 }
 
 export type AppAction =
@@ -25,6 +26,7 @@ export type AppAction =
   | { type: 'MERGE_DSL_NODES'; dslNodes: Node[] }
   | { type: 'ADD_FLOATING_NODE'; node: Node }
   | { type: 'REMOVE_FLOATING_NODE'; id: string }
+  | { type: 'SET_PENDING_POSITION'; id: string; position: { x: number; y: number } }
   | { type: 'SET_EDGES'; edges: Edge[] }
   | { type: 'SELECT_NODE'; id: string | null }
   | { type: 'HIGHLIGHT_NODE'; id: string | null }
@@ -43,4 +45,5 @@ export const initialState: AppState = {
   highlightedNodeId: null,
   results: new Map(),
   isRunning: false,
+  pendingPositions: new Map(),
 };

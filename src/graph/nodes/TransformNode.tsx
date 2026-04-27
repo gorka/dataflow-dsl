@@ -29,8 +29,8 @@ export function TransformNode(props: NodeProps) {
 
   return (
     <div className={styles.wrapper}>
-      {role === 'input' && <div className={styles.arrowAbove}>▼</div>}
-      <div className={`${styles.node} ${role ? styles[role] : ''}`} style={{ borderColor: unlinked || connected === false ? '#666' : color, opacity: unlinked || connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
+      {(role === 'input' || role === 'both') && <div className={styles.arrowAbove}>▼</div>}
+      <div className={`${styles.node} ${role === 'both' ? `${styles.input} ${styles.output}` : role ? styles[role] : ''}`} style={{ borderColor: unlinked || connected === false ? '#666' : color, opacity: unlinked || connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
         <Handle type="target" position={Position.Top} className={styles.handle} style={{ background: color }} />
         <div className={styles.header} style={{ background: unlinked || connected === false ? '#444' : color }}>
           <span className={styles.label}>{label}</span>
@@ -47,7 +47,7 @@ export function TransformNode(props: NodeProps) {
         />
         <Handle type="source" position={Position.Bottom} className={styles.handle} style={{ background: color }} />
       </div>
-      {role === 'output' && <div className={styles.arrowBelow}>▼</div>}
+      {(role === 'output' || role === 'both') && <div className={styles.arrowBelow}>▼</div>}
     </div>
   );
 }

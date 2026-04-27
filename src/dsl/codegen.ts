@@ -77,7 +77,7 @@ function generateSourceLine(node: GraphNode): string {
 }
 
 function generateTransformLine(node: GraphNode): string {
-  const parent = node.parentId!;
+  const parent = node.parentId ?? '';
 
   switch (node.type) {
     case 'filter': {
@@ -116,7 +116,6 @@ export function generateDsl(registry: NodeRegistry): string {
 }
 
 export function addNodeToCode(code: string, node: GraphNode): string {
-  if (node.type !== 'source' && !node.parentId) return code;
   const line = generateNodeLine(node);
   return code.trimEnd() + '\n' + line;
 }
@@ -189,6 +188,10 @@ export function updateNodeConfigInCode(
     if (!(args[0].type === 'Literal' && args[0].value === nodeId)) continue;
 
     const callee = expr.callee?.name;
+
+    if (key === '__parent' && callee !== 'source' && args.length >= 2) {
+      args[1] = newValueAst as typeof args[1];
+    }
 
     if (callee === 'source' && args.length >= 2) {
       const configArg = args[1];

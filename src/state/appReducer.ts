@@ -60,8 +60,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const cleanedFloating = state.floatingNodes.filter(n => !dslIds.has(n.id));
 
       const prevMap = new Map(state.nodes.map(n => [n.id, n]));
+      const usedPositions = new Set<string>();
       const merged = action.dslNodes.map(dn => {
         const existing = prevMap.get(dn.id);
+        const pending = state.pendingPositions.get(dn.id);
+        if (pending) usedPositions.add(dn.id);
+        if (!existing && pending) return { ...dn, position: pending };
         if (!existing) return dn;
         return {
           ...dn,
@@ -76,12 +80,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         };
       });
       const uniqueFloating = cleanedFloating.filter(n => !dslIds.has(n.id));
+      const newPending = usedPositions.size > 0
+        ? new Map([...state.pendingPositions].filter(([id]) => !usedPositions.has(id)))
+        : state.pendingPositions;
 
       return {
         ...state,
         nodes: [...merged, ...uniqueFloating],
         floatingNodes: cleanedFloating,
+        pendingPositions: newPending,
       };
+    }
+
+    case 'SET_PENDING_POSITION': {
+      const newPositions = new Map(state.pendingPositions);
+      newPositions.set(action.id, action.position);
+      return { ...state, pendingPositions: newPositions };
     }
 
     case 'ADD_FLOATING_NODE':

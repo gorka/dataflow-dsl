@@ -10,20 +10,12 @@ import { useGraphFromDsl, registryToFlow } from './graph/useGraphFromDsl';
 import { useDslFromGraph } from './graph/useDslFromGraph';
 import { useKeyboardHandler } from './graph/useKeyboardHandler';
 import { evaluateDsl } from './dsl/runtime';
-import { addNodeToCode as addNodeToDsl } from './dsl/codegen';
 import { executePipeline } from './dsl/execute';
 import { AppProvider } from './state/AppProvider';
 import { useAppState, useAppDispatch } from './state/useAppState';
 import { ErrorBoundary } from './ErrorBoundary';
 import type { NodeType, GraphNode } from './types';
 import styles from './App.module.css';
-
-const defaultConfigs: Record<string, GraphNode['config']> = {
-  filter: { expression: '' },
-  map: { mapping: {} },
-  select: { fields: [] },
-  join: { nodeId: '', as: '' },
-};
 
 function AppInner() {
   const state = useAppState();
@@ -75,38 +67,20 @@ function AppInner() {
     if (!connection.source || !connection.target) return;
     const s = stateRef.current;
 
-    const floatingNode = s.floatingNodes.find(n => n.id === connection.target);
-    if (floatingNode) {
-      const nodeData = floatingNode.data as { nodeType: string; config: GraphNode['config'] };
-      const graphNode: GraphNode = {
-        id: connection.target,
-        type: nodeData.nodeType as NodeType,
-        config: nodeData.config,
-        parentId: connection.source,
-      };
-      setCodeWithHistory(prev => addNodeToDsl(prev, graphNode));
-      dispatch({ type: 'REMOVE_FLOATING_NODE', id: connection.target! });
-      return;
-    }
-
     const registry = evaluateDsl(s.code);
     const targetNode = registry.nodes.find(n => n.id === connection.target);
-    if (targetNode?.type === 'join' && targetNode.parentId !== connection.source) {
+    if (!targetNode || targetNode.type === 'source') return;
+
+    if (!targetNode.parentId) {
+      updateConfig(connection.target, '__parent', JSON.stringify(connection.source));
+    } else if (targetNode.type === 'join') {
       updateConfig(connection.target, 'nodeId', JSON.stringify(connection.source));
     }
-  }, [setCodeWithHistory, updateConfig, dispatch]);
+  }, [updateConfig]);
 
   const addNode = useCallback((type: NodeType, id: string, parentId?: string, position?: { x: number; y: number }) => {
-    if (type === 'source' || parentId) {
-      addNodeToCode(type, id, parentId);
-      dispatch({ type: 'REMOVE_FLOATING_NODE', id });
-    } else {
-      const pos = position ?? { x: 100, y: 100 };
-      dispatch({
-        type: 'ADD_FLOATING_NODE',
-        node: { id, type, position: pos, data: { label: id, nodeType: type, config: defaultConfigs[type], unlinked: true } },
-      });
-    }
+    if (position) dispatch({ type: 'SET_PENDING_POSITION', id, position });
+    addNodeToCode(type, id, parentId);
   }, [addNodeToCode, dispatch]);
 
   const handleRun = useCallback(async () => {

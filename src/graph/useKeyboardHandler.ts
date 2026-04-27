@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Dispatch } from 'react';
 
-import { evaluateDsl } from '../dsl/runtime';
 import { removeNodeFromCode } from '../dsl/codegen';
 import type { AppState, AppAction } from '../state/appState';
 
@@ -55,7 +54,7 @@ function handleDelete(
 
   if (selectedEdge) {
     e.preventDefault();
-    handleEdgeDelete(selectedEdge, s, dispatch, setCodeWithHistory, updateConfig);
+    handleEdgeDelete(selectedEdge, updateConfig);
     return;
   }
 
@@ -68,30 +67,12 @@ function handleDelete(
 
 function handleEdgeDelete(
   edge: AppState['edges'][number],
-  s: AppState,
-  dispatch: Dispatch<AppAction>,
-  setCodeWithHistory: (code: string | ((prev: string) => string)) => void,
   updateConfig: (nodeId: string, key: string, value: string) => void,
 ) {
   const edgeType = (edge.data as { edgeType: string } | undefined)?.edgeType;
 
   if (edgeType === 'chain') {
-    const registry = evaluateDsl(s.code);
-    const targetNode = registry.nodes.find(n => n.id === edge.target);
-    if (!targetNode) return;
-
-    setCodeWithHistory(prev => removeNodeFromCode(prev, edge.target));
-    const currentNode = s.nodes.find(n => n.id === edge.target);
-    const position = currentNode?.position ?? { x: 100, y: 100 };
-    dispatch({
-      type: 'ADD_FLOATING_NODE',
-      node: {
-        id: targetNode.id,
-        type: targetNode.type,
-        position,
-        data: { label: targetNode.id, nodeType: targetNode.type, config: targetNode.config, unlinked: true },
-      },
-    });
+    updateConfig(edge.target, '__parent', '""');
   } else if (edgeType === 'join') {
     updateConfig(edge.target, 'nodeId', '""');
   }
@@ -103,12 +84,7 @@ function handleNodeDelete(
   dispatch: Dispatch<AppAction>,
   setCodeWithHistory: (code: string | ((prev: string) => string)) => void,
 ) {
-  const isFloating = s.floatingNodes.some(n => n.id === node.id);
-  if (isFloating) {
-    dispatch({ type: 'REMOVE_FLOATING_NODE', id: node.id });
-  } else {
-    setCodeWithHistory(prev => removeNodeFromCode(prev, node.id));
-  }
+  setCodeWithHistory(prev => removeNodeFromCode(prev, node.id));
   if (s.selectedNodeId === node.id) {
     dispatch({ type: 'SELECT_NODE', id: null });
   }

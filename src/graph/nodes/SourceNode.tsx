@@ -19,8 +19,8 @@ export function SourceNode(props: NodeProps) {
 
   return (
     <div className={styles.wrapper}>
-      {role === 'input' && <div className={styles.arrowAbove}>▼</div>}
-      <div className={`${styles.node} ${role ? styles[role] : ''}`} style={{ borderColor: connected === false ? '#666' : '#5865f2', opacity: connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
+      {(role === 'input' || role === 'both') && <div className={styles.arrowAbove}>▼</div>}
+      <div className={`${styles.node} ${role === 'both' ? `${styles.input} ${styles.output}` : role ? styles[role] : ''}`} style={{ borderColor: connected === false ? '#666' : '#5865f2', opacity: connected === false || result?.status === 'skipped' ? 0.45 : 1 }}>
         <Handle type="target" position={Position.Top} className={styles.handle} style={{ background: '#5865f2' }} />
         <div className={styles.header} style={{ background: connected === false ? '#444' : '#5865f2' }}>
           <span className={styles.label}>{label}</span>
@@ -36,7 +36,7 @@ export function SourceNode(props: NodeProps) {
         />
         <Handle type="source" position={Position.Bottom} className={styles.handle} style={{ background: '#5865f2' }} />
       </div>
-      {role === 'output' && <div className={styles.arrowBelow}>▼</div>}
+      {(role === 'output' || role === 'both') && <div className={styles.arrowBelow}>▼</div>}
     </div>
   );
 }
