@@ -18,7 +18,7 @@ function mockFetch(responses: Record<string, unknown>) {
 }
 
 describe('executePipeline', () => {
-  it('executes a source node and normalizes SWAPI response', async () => {
+  it('executes a source node with nested object response', async () => {
     mockFetch({
       'https://swapi.dev/api/people/1': {
         result: { properties: { name: 'Luke Skywalker', height: '172' } },
@@ -32,7 +32,9 @@ describe('executePipeline', () => {
 
     const results = await executePipeline(registry);
     expect(results.get('person')?.status).toBe('success');
-    expect(results.get('person')?.data?.items).toEqual([{ name: 'Luke Skywalker', height: '172' }]);
+    expect(results.get('person')?.data?.items).toEqual([
+      { result: { properties: { name: 'Luke Skywalker', height: '172' } } },
+    ]);
   });
 
   it('normalizes array response (plain array used directly)', async () => {
@@ -131,7 +133,7 @@ describe('executePipeline', () => {
     ]);
   });
 
-  it('resolves ref() in endpoint — single URL', async () => {
+  it('resolves ref() in params — single URL', async () => {
     global.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -148,7 +150,10 @@ describe('executePipeline', () => {
         {
           id: 'profile',
           type: 'source',
-          config: { endpoint: { __ref: true, nodeId: 'users', field: 'profileUrl' } },
+          config: {
+            endpoint: '{url}',
+            params: { url: { __ref: true, nodeId: 'users', field: 'profileUrl' } },
+          },
         },
       ],
       edges: [{ source: 'users', target: 'profile', type: 'ref' }],
@@ -159,7 +164,7 @@ describe('executePipeline', () => {
     expect(results.get('profile')?.data?.items).toEqual([{ bio: 'Software engineer' }]);
   });
 
-  it('resolves ref() in endpoint — array of URLs (parallel fetch)', async () => {
+  it('resolves ref() in params — array of URLs (parallel fetch)', async () => {
     global.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -183,7 +188,10 @@ describe('executePipeline', () => {
         {
           id: 'profiles',
           type: 'source',
-          config: { endpoint: { __ref: true, nodeId: 'users', field: 'profileUrl' } },
+          config: {
+            endpoint: '{url}',
+            params: { url: { __ref: true, nodeId: 'users', field: 'profileUrl' } },
+          },
         },
       ],
       edges: [{ source: 'users', target: 'profiles', type: 'ref' }],
@@ -209,5 +217,25 @@ describe('executePipeline', () => {
     expect(results.get('users')?.status).toBe('error');
     expect(results.get('adults')?.status).toBe('error');
     expect(results.get('adults')?.error).toBe('Upstream node failed');
+  });
+
+  it('skips orphan nodes during execution', async () => {
+    mockFetch({
+      'https://api.example.com/users': [{ name: 'Alice' }],
+    });
+
+    const registry: NodeRegistry = {
+      nodes: [
+        { id: 'users', type: 'source', config: { endpoint: 'https://api.example.com/users' } },
+        { id: 'connected', type: 'filter', config: { expression: 'true' }, parentId: 'users' },
+        { id: 'orphan', type: 'filter', config: { expression: 'x > 1' } },
+      ],
+      edges: [{ source: 'users', target: 'connected', type: 'chain' }],
+    };
+
+    const results = await executePipeline(registry);
+    expect(results.get('users')?.status).toBe('success');
+    expect(results.get('connected')?.status).toBe('success');
+    expect(results.get('orphan')?.status).toBe('skipped');
   });
 });

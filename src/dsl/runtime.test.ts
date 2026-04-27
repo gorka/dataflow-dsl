@@ -160,4 +160,41 @@ describe('evaluateDsl', () => {
     expect(registry.nodes[0].id).toBe('person');
     expect(registry.error).toBeDefined();
   });
+
+  it('accepts source with empty endpoint', () => {
+    const registry = evaluateDsl(`source("api", { endpoint: "" });`);
+    expect(registry.error).toBeUndefined();
+    expect(registry.nodes).toHaveLength(1);
+    expect(registry.nodes[0].id).toBe('api');
+  });
+
+  it('accepts filter with empty parent and expression', () => {
+    const registry = evaluateDsl(`filter("f1", "", "");`);
+    expect(registry.error).toBeUndefined();
+    expect(registry.nodes).toHaveLength(1);
+    expect(registry.nodes[0]).toMatchObject({
+      id: 'f1',
+      type: 'filter',
+      config: { expression: '' },
+    });
+    expect(registry.nodes[0].parentId).toBeUndefined();
+  });
+
+  it('accepts map with empty parent', () => {
+    const registry = evaluateDsl(`map("m1", "", { a: "b" });`);
+    expect(registry.error).toBeUndefined();
+    expect(registry.nodes[0]).toMatchObject({ id: 'm1', type: 'map' });
+  });
+
+  it('accepts select with empty parent', () => {
+    const registry = evaluateDsl(`select("s1", "", ["name"]);`);
+    expect(registry.error).toBeUndefined();
+    expect(registry.nodes[0]).toMatchObject({ id: 's1', type: 'select' });
+  });
+
+  it('accepts join with empty parent and empty other', () => {
+    const registry = evaluateDsl(`join("j1", "", "", { as: "data" });`);
+    expect(registry.error).toBeUndefined();
+    expect(registry.nodes[0]).toMatchObject({ id: 'j1', type: 'join' });
+  });
 });

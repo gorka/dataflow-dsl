@@ -7,12 +7,14 @@ interface ToolbarProps {
   onRun: () => void;
   onAutoLayout: () => void;
   onClear: () => void;
+  onRemoveOrphans: () => void;
   onExampleSelect: (code: string) => void;
   isRunning: boolean;
+  hasOrphans: boolean;
   showHint?: boolean;
 }
 
-export function Toolbar({ onRun, onAutoLayout, onClear, onExampleSelect, isRunning, showHint }: ToolbarProps) {
+export function Toolbar({ onRun, onAutoLayout, onClear, onRemoveOrphans, onExampleSelect, isRunning, hasOrphans, showHint }: ToolbarProps) {
   const [hintDismissed, setHintDismissed] = useState(false);
   const hintVisible = showHint && !hintDismissed;
 
@@ -32,6 +34,7 @@ export function Toolbar({ onRun, onAutoLayout, onClear, onExampleSelect, isRunni
         </button>
         <button className={styles.button} onClick={onAutoLayout}>Auto-layout</button>
         <button className={styles.button} onClick={onClear}>Clear</button>
+        {hasOrphans && <button className={styles.button} onClick={onRemoveOrphans}>Remove orphans</button>}
         <div className={styles.selectWrapper}>
           <select
             className={styles.exampleSelect}

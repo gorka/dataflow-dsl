@@ -47,7 +47,7 @@
   font-size: 18px;
   color: #00e5ff;
   filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.5));
-  pointer-events: none;
+  cursor: default;
 }
 
 .arrowBelow {
@@ -58,7 +58,7 @@
   font-size: 18px;
   color: #ffb74d;
   filter: drop-shadow(0 0 4px rgba(255, 183, 77, 0.5));
-  pointer-events: none;
+  cursor: default;
 }
 
 .node.input {

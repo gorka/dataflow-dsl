@@ -36,21 +36,24 @@ describe('generateDsl', () => {
     expect(code).toContain('"age"');
   });
 
-  it('generates code for ref() in endpoint', () => {
+  it('generates code for ref() in params', () => {
     const registry: NodeRegistry = {
       nodes: [
         { id: 'person', type: 'source', config: { endpoint: '/api/people' } },
         {
           id: 'order',
           type: 'source',
-          config: { endpoint: { __ref: true, nodeId: 'person', field: 'id' } },
+          config: {
+            endpoint: '{url}',
+            params: { url: { __ref: true, nodeId: 'person', field: 'profileUrl' } },
+          },
         },
       ],
       edges: [{ source: 'person', target: 'order', type: 'ref' }],
     };
     const code = generateDsl(registry);
     expect(code).toContain('source("person",');
-    expect(code).toContain('ref("person", "id")');
+    expect(code).toContain('ref("person", "profileUrl")');
   });
 
   it('generates code for join', () => {
@@ -100,7 +103,7 @@ describe('addNodeToCode', () => {
     expect(result).toContain('source("posts",');
   });
 
-  it('ignores unlinked transform node (no parentId)', () => {
+  it('appends unlinked transform node with empty parent', () => {
     const existing = `source("users", { endpoint: "/api/users" });`;
     const newNode: GraphNode = {
       id: 'filter_1',
@@ -108,7 +111,7 @@ describe('addNodeToCode', () => {
       config: { expression: '' },
     };
     const result = addNodeToCode(existing, newNode);
-    expect(result).toBe(existing);
+    expect(result).toContain('filter("filter_1", "", "")');
   });
 
   it('appends a transform connected to parent', () => {
@@ -142,5 +145,28 @@ describe('updateNodeConfigInCode', () => {
     const result = updateNodeConfigInCode(code, 'users', 'endpoint', '"/api/v2/users"');
     expect(result).toContain('/api/v2/users');
     expect(result).not.toContain('/api/users"');
+  });
+
+  it('updates __parent of a transform node', () => {
+    const code = `source("api", { endpoint: "/api" });\nfilter("f1", "", "x > 1");`;
+    const result = updateNodeConfigInCode(code, 'f1', '__parent', '"api"');
+    expect(result).toContain('filter("f1", "api", "x > 1")');
+  });
+
+  it('clears __parent of a transform node', () => {
+    const code = `filter("f1", "api", "x > 1");`;
+    const result = updateNodeConfigInCode(code, 'f1', '__parent', '""');
+    expect(result).toContain('filter("f1", "", "x > 1")');
+  });
+});
+
+describe('removeNodeFromCode — orphans', () => {
+  it('removes multiple orphan nodes', () => {
+    const code = `source("api", { endpoint: "/url" });\nfilter("f1", "", "x > 1");\nmap("m1", "", { a: "b" });`;
+    let result = removeNodeFromCode(code, 'f1');
+    result = removeNodeFromCode(result, 'm1');
+    expect(result).toContain('source("api"');
+    expect(result).not.toContain('filter("f1"');
+    expect(result).not.toContain('map("m1"');
   });
 });

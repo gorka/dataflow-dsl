@@ -1,7 +1,7 @@
 import type { NodeType } from '../types';
 import {
   SourceDocs, FilterDocs, MapDocs, SelectDocs, JoinDocs,
-  RefDocs, SyntaxDocs, UsageDocs, NODE_DOCS,
+  RefDocs, SyntaxDocs, UsageDocs, PipelineDocs, NODE_DOCS,
 } from './docs/NodeDocs';
 import styles from './DocsPanel.module.css';
 
@@ -37,6 +37,7 @@ export function DocsPanel({ nodeType }: DocsPanelProps) {
 
       <SyntaxDocs />
       <UsageDocs />
+      <PipelineDocs />
     </div>
   );
 }

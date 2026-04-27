@@ -10,7 +10,8 @@ import { useGraphFromDsl, registryToFlow } from './graph/useGraphFromDsl';
 import { useDslFromGraph } from './graph/useDslFromGraph';
 import { useKeyboardHandler } from './graph/useKeyboardHandler';
 import { evaluateDsl } from './dsl/runtime';
-import { executePipeline } from './dsl/execute';
+import { executePipeline, findConnectedNodes } from './dsl/execute';
+import { removeNodeFromCode } from './dsl/codegen';
 import { AppProvider } from './state/AppProvider';
 import { useAppState, useAppDispatch } from './state/useAppState';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -122,6 +123,28 @@ function AppInner() {
     [dispatch],
   );
 
+  const handleRemoveOrphans = useCallback(() => {
+    const reg = evaluateDsl(state.code);
+    if (reg.error) return;
+    const connected = findConnectedNodes(reg);
+    const orphanIds = reg.nodes.filter(n => !connected.has(n.id)).map(n => n.id);
+    if (orphanIds.length === 0) return;
+    setCodeWithHistory(prev => {
+      let result = prev;
+      for (const id of orphanIds) {
+        result = removeNodeFromCode(result, id);
+      }
+      return result;
+    });
+  }, [state.code, setCodeWithHistory]);
+
+  const hasOrphans = useMemo(() => {
+    const reg = evaluateDsl(state.code);
+    if (reg.error || reg.nodes.length === 0) return false;
+    const connected = findConnectedNodes(reg);
+    return reg.nodes.some(n => !connected.has(n.id));
+  }, [state.code]);
+
   const handleExampleSelect = useCallback(
     (exampleCode: string) => dispatch({ type: 'LOAD_EXAMPLE', code: exampleCode }),
     [dispatch],
@@ -189,8 +212,10 @@ function AppInner() {
         onRun={handleRun}
         onAutoLayout={handleAutoLayout}
         onClear={handleClear}
+        onRemoveOrphans={handleRemoveOrphans}
         onExampleSelect={handleExampleSelect}
         isRunning={state.isRunning}
+        hasOrphans={hasOrphans}
         showHint={state.code === '' && state.nodes.length === 0}
       />
       <div className={styles.main}>

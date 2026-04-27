@@ -151,3 +151,27 @@ export function UsageDocs() {
     </>
   );
 }
+
+export function PipelineDocs() {
+  return (
+    <>
+      <h2>Pipeline Flow</h2>
+
+      <h3>Input & Output</h3>
+      <p>The pipeline automatically detects its entry and exit points:</p>
+      <ul>
+        <li><strong style={{ color: '#00e5ff' }}>▼ Input</strong> — the first source node in the chain (cyan glow). Data enters the pipeline here.</li>
+        <li><strong style={{ color: '#ffb74d' }}>▼ Output</strong> — the last node in the chain (orange glow). This is where the final result comes from.</li>
+      </ul>
+      <p>A single node can be both input and output if it's the only node in the pipeline.</p>
+
+      <h3>Orphan Nodes</h3>
+      <p>An orphan node is a transform that isn't connected to any source through its parent chain. Orphans appear <strong>dimmed and grayed out</strong> on the canvas.</p>
+      <ul>
+        <li>Orphans are <strong>skipped</strong> during execution — they won't fetch or process data</li>
+        <li>To fix an orphan, connect it to a parent by dragging an edge from another node</li>
+        <li>Use the <strong>Remove orphans</strong> button in the toolbar to delete all orphan nodes at once</li>
+      </ul>
+    </>
+  );
+}
