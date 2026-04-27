@@ -196,11 +196,24 @@ export function updateNodeConfigInCode(
     if (callee === 'source' && args.length >= 2) {
       const configArg = args[1];
       if (configArg.type !== 'ObjectExpression') continue;
+      let found = false;
       for (const prop of configArg.properties ?? []) {
         const propKey = prop.key.name ?? prop.key.value;
         if (propKey === key) {
           prop.value = newValueAst;
+          found = true;
         }
+      }
+      if (!found) {
+        (configArg.properties ??= []).push({
+          type: 'Property',
+          kind: 'init',
+          computed: false,
+          method: false,
+          shorthand: false,
+          key: { type: 'Identifier', name: key },
+          value: newValueAst,
+        } as (typeof configArg.properties)[0]);
       }
     }
 

@@ -33,7 +33,6 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
   const startAsRef = isRefValue(value);
   const [mode, setMode] = useState<'val' | 'ref'>(startAsRef ? 'ref' : 'val');
 
-  const [localVal, setLocalVal] = useState(startAsRef ? '' : String(value ?? ''));
   const [refNode, setRefNode] = useState(startAsRef ? (value as RefValue).nodeId : '');
   const [refField, setRefField] = useState(startAsRef ? (value as RefValue).field : '');
 
@@ -44,27 +43,32 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
       setRefField(value.field);
     } else {
       setMode('val');
-      setLocalVal(String(value ?? ''));
     }
   }, [value]);
 
-  const commitVal = () => onCommit(serializeLiteral(localVal));
-  const commitRef = () => {
-    if (refNode && refField) {
-      onCommit(`ref(${JSON.stringify(refNode)}, ${JSON.stringify(refField)})`);
+  const valDisplay = startAsRef ? '' : String(value ?? '');
+
+  const serializeRef = (node: string, field: string) =>
+    `ref(${JSON.stringify(node)}, ${JSON.stringify(field)})`;
+
+  const toggleMode = () => {
+    const next = mode === 'val' ? 'ref' : 'val';
+    setMode(next);
+    if (next === 'val') {
+      onCommit('""');
+    } else {
+      onCommit(serializeRef(refNode, refField));
     }
   };
-  const blur = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-  };
-
-  const toggleMode = () => setMode(m => m === 'val' ? 'ref' : 'val');
 
   const handleNodeSelect = (nodeId: string) => {
     setRefNode(nodeId);
-    if (nodeId && refField) {
-      onCommit(`ref(${JSON.stringify(nodeId)}, ${JSON.stringify(refField)})`);
-    }
+    onCommit(serializeRef(nodeId, refField));
+  };
+
+  const handleFieldChange = (field: string) => {
+    setRefField(field);
+    onCommit(serializeRef(refNode, field));
   };
 
   return (
@@ -80,11 +84,9 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
       {mode === 'val' ? (
         <input
           className={styles.fieldInput}
-          value={localVal}
+          value={valDisplay}
           placeholder="value"
-          onChange={e => setLocalVal(e.target.value)}
-          onBlur={commitVal}
-          onKeyDown={blur}
+          onChange={e => onCommit(serializeLiteral(e.target.value))}
         />
       ) : (
         <div className={styles.refInputs}>
@@ -102,9 +104,7 @@ export function ParamRow({ paramKey, value, nodeIds, onCommit, styles }: {
             className={styles.refInput}
             value={refField}
             placeholder="field"
-            onChange={e => setRefField(e.target.value)}
-            onBlur={commitRef}
-            onKeyDown={blur}
+            onChange={e => handleFieldChange(e.target.value)}
           />
         </div>
       )}

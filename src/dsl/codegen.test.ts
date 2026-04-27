@@ -158,6 +158,15 @@ describe('updateNodeConfigInCode', () => {
     const result = updateNodeConfigInCode(code, 'f1', '__parent', '""');
     expect(result).toContain('filter("f1", "", "x > 1")');
   });
+
+  it('adds a new property to source config', () => {
+    const code = `source("api", { endpoint: "/api/users/{id}" });`;
+    const result = updateNodeConfigInCode(code, 'api', 'params', '{ id: "" }');
+    expect(result).toContain('params');
+    expect(result).toContain('id');
+    const registry = evaluateDsl(result);
+    expect(registry.nodes[0].config).toHaveProperty('params');
+  });
 });
 
 describe('removeNodeFromCode — orphans', () => {

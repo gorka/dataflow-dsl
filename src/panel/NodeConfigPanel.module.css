@@ -103,11 +103,13 @@
   border-radius: 4px;
   color: #c4a7e7;
   font-family: monospace;
-  font-size: 12px;
-  padding: 4px 6px;
+  font-size: 13px;
+  padding: 6px 8px;
+  height: 29px;
   width: 50%;
   outline: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .refInput {
@@ -116,8 +118,20 @@
   border-radius: 4px;
   color: #c4a7e7;
   font-family: monospace;
-  font-size: 12px;
-  padding: 4px 6px;
+  font-size: 13px;
+  padding: 6px 8px;
+  height: 29px;
   width: 50%;
   outline: none;
+  box-sizing: border-box;
+}
+
+.fieldInputError {
+  border-color: #e74c3c;
+}
+
+.errorText {
+  font-size: 11px;
+  color: #e74c3c;
+  width: 100%;
 }

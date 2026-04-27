@@ -1,25 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
 import type { SourceConfig } from '../types';
 import { BlurInput } from '../shared/BlurInput';
 import { ParamRows } from '../shared/ParamRows';
+import { extractPlaceholders, serializeParamValue } from '../shared/ParamRow';
 import styles from './NodeConfigPanel.module.css';
 
 interface SourceConfigPanelProps {
   config: SourceConfig;
   onConfigChange: (key: string, value: string) => void;
   nodeIds: string[];
+  currentNodeId: string;
 }
 
-export function SourceConfigPanel({ config, onConfigChange, nodeIds }: SourceConfigPanelProps) {
-  const [localEndpoint, setLocalEndpoint] = useState(config.endpoint ?? '');
-  useEffect(() => { setLocalEndpoint(config.endpoint ?? ''); }, [config.endpoint]);
+export function SourceConfigPanel({ config, onConfigChange, nodeIds, currentNodeId }: SourceConfigPanelProps) {
+  const endpoint = config.endpoint ?? '';
 
-  const commitEndpoint = () => {
-    if (localEndpoint !== config.endpoint) {
-      onConfigChange('endpoint', JSON.stringify(localEndpoint));
-    }
-  };
+  const paramKeys = config.params ? Object.keys(config.params).sort().join(',') : '';
+  useEffect(() => {
+    syncParams(endpoint, config, onConfigChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, paramKeys]);
 
   return (
     <>
@@ -27,10 +28,8 @@ export function SourceConfigPanel({ config, onConfigChange, nodeIds }: SourceCon
         <span className={styles.fieldLabel}>endpoint</span>
         <input
           className={styles.fieldInput}
-          value={localEndpoint}
-          onChange={e => setLocalEndpoint(e.target.value)}
-          onBlur={commitEndpoint}
-          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          value={endpoint}
+          onChange={e => onConfigChange('endpoint', JSON.stringify(e.target.value))}
         />
       </div>
       <div className={styles.field}>
@@ -41,7 +40,18 @@ export function SourceConfigPanel({ config, onConfigChange, nodeIds }: SourceCon
           onCommit={v => onConfigChange('method', JSON.stringify(v))}
         />
       </div>
-      <ParamRows endpoint={localEndpoint} config={config} nodeIds={nodeIds} onConfigChange={onConfigChange} styles={styles} />
+      <ParamRows endpoint={endpoint} config={config} nodeIds={nodeIds} currentNodeId={currentNodeId} onConfigChange={onConfigChange} styles={styles} />
     </>
   );
+}
+
+function syncParams(endpoint: string, config: SourceConfig, onConfigChange: (key: string, value: string) => void) {
+  const placeholders = extractPlaceholders(endpoint);
+  if (placeholders.length === 0) return;
+  const existing = config.params ?? {};
+  const missing = placeholders.filter(k => !(k in existing));
+  if (missing.length === 0) return;
+  const allKeys = [...new Set([...Object.keys(existing), ...placeholders])];
+  const entries = allKeys.map(k => `${k}: ${serializeParamValue(existing[k])}`);
+  onConfigChange('params', `{ ${entries.join(', ')} }`);
 }

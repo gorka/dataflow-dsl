@@ -62,13 +62,13 @@ function JoinConfigFields({ config, onConfigChange, nodeIds }: { config: JoinCon
   );
 }
 
-export function NodeConfigPanel({ nodeType, config, onConfigChange, nodeIds }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ nodeId, nodeType, config, onConfigChange, nodeIds }: NodeConfigPanelProps) {
   if (!config) return null;
 
   return (
     <div className={styles.config}>
       {nodeType === 'source' && (
-        <SourceConfigPanel config={config as SourceConfig} onConfigChange={onConfigChange} nodeIds={nodeIds} />
+        <SourceConfigPanel config={config as SourceConfig} onConfigChange={onConfigChange} nodeIds={nodeIds} currentNodeId={nodeId} />
       )}
       {nodeType === 'filter' && (
         <div className={styles.field}>

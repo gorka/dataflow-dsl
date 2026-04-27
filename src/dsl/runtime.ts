@@ -27,7 +27,7 @@ export function evaluateDsl(code: string): NodeRegistry {
     if (!name || !config) throw new Error(`source() requires a name and config object`);
     nodes.push({ id: name, type: 'source', config: { ...config, endpoint: config.endpoint ?? '' } });
     for (const refVal of collectRefValues(config)) {
-      edges.push({ source: refVal.nodeId, target: name, type: 'ref' });
+      if (refVal.nodeId) edges.push({ source: refVal.nodeId, target: name, type: 'ref' });
     }
   };
 
