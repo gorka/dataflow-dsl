@@ -126,6 +126,35 @@
   box-sizing: border-box;
 }
 
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fieldRowInput {
+  composes: fieldInput;
+  width: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.removeBtn {
+  all: unset;
+  font-size: 11px;
+  font-family: monospace;
+  color: #666;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.removeBtn:hover {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.15);
+}
+
 .fieldInputError {
   border-color: #e74c3c;
 }
@@ -134,4 +163,33 @@
   font-size: 11px;
   color: #e74c3c;
   width: 100%;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.chip {
+  all: unset;
+  font-size: 11px;
+  font-family: monospace;
+  color: #93c5fd;
+  background: #1e1e2e;
+  border: 1px solid #3a3a5a;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: #2a2a4a;
+  border-color: #5865f2;
+}
+
+.chipBranch {
+  composes: chip;
+  color: #c4a7e7;
 }

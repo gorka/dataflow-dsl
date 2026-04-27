@@ -47,11 +47,24 @@ export function SourceConfigPanel({ config, onConfigChange, nodeIds, currentNode
 
 function syncParams(endpoint: string, config: SourceConfig, onConfigChange: (key: string, value: string) => void) {
   const placeholders = extractPlaceholders(endpoint);
-  if (placeholders.length === 0) return;
   const existing = config.params ?? {};
+  const placeholderSet = new Set(placeholders);
+
+  const stale = Object.keys(existing).filter(k =>
+    !placeholderSet.has(k) && (existing[k] === '' || existing[k] === undefined)
+  );
   const missing = placeholders.filter(k => !(k in existing));
-  if (missing.length === 0) return;
-  const allKeys = [...new Set([...Object.keys(existing), ...placeholders])];
+
+  if (missing.length === 0 && stale.length === 0) return;
+
+  const staleSet = new Set(stale);
+  const kept = Object.keys(existing).filter(k => !staleSet.has(k));
+  const allKeys = [...new Set([...kept, ...placeholders])];
+
+  if (allKeys.length === 0) {
+    onConfigChange('params', '{}');
+    return;
+  }
   const entries = allKeys.map(k => `${k}: ${serializeParamValue(existing[k])}`);
   onConfigChange('params', `{ ${entries.join(', ')} }`);
 }

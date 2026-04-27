@@ -29,6 +29,7 @@ interface RightPanelProps {
   selectedNodeConfig?: GraphNode['config'];
   onConfigChange?: (key: string, value: string) => void;
   nodeIds?: string[];
+  parentFields?: string[];
 }
 
 export function RightPanel({
@@ -42,6 +43,7 @@ export function RightPanel({
   selectedNodeConfig,
   onConfigChange,
   nodeIds = [],
+  parentFields = [],
 }: RightPanelProps) {
   const [globalTab, setGlobalTab] = useState<GlobalTab>('dsl');
   const [nodeTab, setNodeTab] = useState<NodeTab>('config');
@@ -147,6 +149,7 @@ export function RightPanel({
                 config={selectedNodeConfig}
                 onConfigChange={onConfigChange}
                 nodeIds={nodeIds}
+                parentFields={parentFields}
               />
             </div>
             <div className={styles.splitDivider} onMouseDown={onDividerMouseDown} />

@@ -1,6 +1,7 @@
 import type { NodeType, GraphNode, SourceConfig, FilterConfig, MapConfig, SelectConfig, JoinConfig } from '../types';
 import { BlurInput } from '../shared/BlurInput';
 import { SourceConfigPanel } from './SourceConfigPanel';
+import { SelectConfigPanel } from './SelectConfigPanel';
 import styles from './NodeConfigPanel.module.css';
 
 interface NodeConfigPanelProps {
@@ -9,6 +10,7 @@ interface NodeConfigPanelProps {
   config: GraphNode['config'];
   onConfigChange: (key: string, value: string) => void;
   nodeIds: string[];
+  parentFields?: string[];
 }
 
 function MapConfigFields({ config, onConfigChange }: { config: MapConfig; onConfigChange: (key: string, value: string) => void }) {
@@ -62,7 +64,7 @@ function JoinConfigFields({ config, onConfigChange, nodeIds }: { config: JoinCon
   );
 }
 
-export function NodeConfigPanel({ nodeId, nodeType, config, onConfigChange, nodeIds }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ nodeId, nodeType, config, onConfigChange, nodeIds, parentFields = [] }: NodeConfigPanelProps) {
   if (!config) return null;
 
   return (
@@ -84,18 +86,7 @@ export function NodeConfigPanel({ nodeId, nodeType, config, onConfigChange, node
         <MapConfigFields config={config as MapConfig} onConfigChange={onConfigChange} />
       )}
       {nodeType === 'select' && (
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>fields (comma-separated)</span>
-          <BlurInput
-            className={styles.fieldInput}
-            value={(config as SelectConfig).fields.join(', ')}
-            placeholder="field1, field2, ..."
-            onCommit={v => {
-              const fields = v.split(',').map(s => s.trim()).filter(Boolean);
-              onConfigChange('fields', JSON.stringify(fields));
-            }}
-          />
-        </div>
+        <SelectConfigPanel config={config as SelectConfig} onConfigChange={onConfigChange} parentFields={parentFields} />
       )}
       {nodeType === 'join' && (
         <JoinConfigFields config={config as JoinConfig} onConfigChange={onConfigChange} nodeIds={nodeIds} />

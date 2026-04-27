@@ -184,6 +184,7 @@ function AppInner() {
 
   let selectedNodeType: NodeType | undefined;
   let selectedNodeConfig: GraphNode['config'] | undefined;
+  let selectedParentId: string | undefined;
   let registryNodeIds: string[] = [];
   const registry = evaluateDsl(state.code);
   registryNodeIds = registry.nodes.map(n => n.id);
@@ -192,8 +193,29 @@ function AppInner() {
     if (found) {
       selectedNodeType = found.type;
       selectedNodeConfig = found.config;
+      selectedParentId = found.parentId;
     }
   }
+
+  const parentFields: string[] = (() => {
+    if (!selectedParentId) return [];
+    const parentResult = state.results.get(selectedParentId);
+    const firstItem = parentResult?.data?.items?.[0];
+    if (!firstItem || typeof firstItem !== 'object') return [];
+    const paths: string[] = [];
+    const walk = (obj: Record<string, unknown>, prefix: string) => {
+      for (const key of Object.keys(obj)) {
+        const path = prefix ? `${prefix}.${key}` : key;
+        paths.push(path);
+        const val = obj[key];
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          walk(val as Record<string, unknown>, path);
+        }
+      }
+    };
+    walk(firstItem as Record<string, unknown>, '');
+    return paths;
+  })();
   if (!registry.error) {
     lastValidPanel.current = { nodeType: selectedNodeType, nodeConfig: selectedNodeConfig, nodeIds: registryNodeIds };
   } else if (state.selectedNodeId) {
@@ -246,6 +268,7 @@ function AppInner() {
             selectedNodeConfig={selectedNodeConfig}
             onConfigChange={handleConfigChange}
             nodeIds={registryNodeIds}
+            parentFields={parentFields}
           />
         </div>
       </div>
